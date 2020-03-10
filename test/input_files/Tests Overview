@@ -1,4 +1,4 @@
-SimpleAddition
+SimpleIntegerAddition (sia)
 	Example
 		print(2+2);
 	Description
@@ -6,11 +6,25 @@ SimpleAddition
 		First number can be negative or positive
 		Second number is positive
 
-SimpleSubtraction
+SimpleIntegerSubtraction (sis)
 	Example
 		print(4-2);
 	Description
 		Contains tests testing the subtraction of two numbers
 		First number can be negative or positive
 		Second number is positive
-Simple 
+
+SimpleIntegerMultiplication (sim)
+	Example
+		print(2*3);
+	Description
+		Contains tests testing the multiplication of two numbers
+		Both first and second numbers are positive
+
+SimpleIntegerDivision (sid)
+	Example
+		print(12/4);
+	Description
+		Contains tests testing the division of two numbers
+		Both first and second numbers are positive
+		First number is multiple of second number (integer division)
