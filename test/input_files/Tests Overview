@@ -1,0 +1,16 @@
+SimpleAddition
+	Example
+		print(2+2);
+	Description
+		Contains tests testing the addition of two numbers
+		First number can be negative or positive
+		Second number is positive
+
+SimpleSubtraction
+	Example
+		print(4-2);
+	Description
+		Contains tests testing the subtraction of two numbers
+		First number can be negative or positive
+		Second number is positive
+Simple 
