@@ -1,0 +1,48 @@
+--------
+Structure of AST
+--------
+
+Code block containing a list of statements and other code blocks
+
+--------
+NODES
+--------
+expression: evaluates to a primitive data structure
+	evaluates to
+		integer
+		float
+		string
+		boolean
+		(list, dictionary, class not included)
+	types
+		primitive data type
+		variable
+		operation
+			between data type, variable, other operations
+
+statements
+	memory storage (variable, function initialization)
+	calling functions
+		built-in functions
+			print(), abs(), len(), pow()
+			full list: https://docs.python.org/3/library/functions.html
+	
+
+code block: statement or linked list of code blocks
+	functions: have additional inputs and return types
+
+complex code blocks
+	if statements: condition, code block
+	loops: condition, code block
+	for, while
+
+--------
+ORGANIZATION
+--------
+NODE
+	INT_EXP
+	FLOAT_EXP
+	STRING_EXP
+	BOOLEAN_EXP
+	FUNCTION_CALL
+	ASSIGNMENT
