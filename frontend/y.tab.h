@@ -66,11 +66,11 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 20 "parser.y" /* yacc.c:1909  */
+#line 31 "parser.y" /* yacc.c:1909  */
 
 	int int_val;
 	float float_val;
-	struct int_exp* int_exp_val;
+	struct int_exp* int_expression;
 
 #line 76 "y.tab.h" /* yacc.c:1909  */
 };

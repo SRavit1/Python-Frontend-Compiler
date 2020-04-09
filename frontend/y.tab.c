@@ -66,22 +66,33 @@
 
 void yyerror (char *s);
 int yylex();
+
 #include <stdio.h>
+#include <stdlib.h>
 #include "nodes.h"
 
-struct statement_link curr_statement;
-curr_statement = malloc(sizeof(curr_statement));
+struct statement_link* body;
 struct statement_link head;
 
 int head_defined = 0;
 
-void add (struct statement_link* ptr, union statement statement) {
-	ptr = malloc(sizeof(ptr));
-	ptr->current_statement = statement;
-	ptr = ptr->next_statements;
-};
+void add (struct statement* ptr) {
+	body->current_statement = *ptr;
+	
+	body = body->next;
+	body = malloc(sizeof(body));
+}
 
-#line 85 "y.tab.c" /* yacc.c:339  */
+void check_head() {
+	if (!head_defined) {
+		head = *body;
+		//TODO: Is head being copied?
+		head_defined = 1;
+	}
+}
+
+
+#line 96 "y.tab.c" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -137,13 +148,13 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 20 "parser.y" /* yacc.c:355  */
+#line 31 "parser.y" /* yacc.c:355  */
 
 	int int_val;
 	float float_val;
-	struct int_exp* int_exp_val;
+	struct int_exp* int_expression;
 
-#line 147 "y.tab.c" /* yacc.c:355  */
+#line 158 "y.tab.c" /* yacc.c:355  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -160,7 +171,7 @@ int yyparse (void);
 
 /* Copy the second part of user declarations.  */
 
-#line 164 "y.tab.c" /* yacc.c:358  */
+#line 175 "y.tab.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -458,7 +469,7 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    36,    36,    47,    56
+       0,    47,    47,    81,    87
 };
 #endif
 
@@ -1224,46 +1235,68 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 37 "parser.y" /* yacc.c:1646  */
+#line 48 "parser.y" /* yacc.c:1646  */
     {
-			int type = (yyvsp[-1].int_exp_val)->type;
-			if (type==0)			
-				printf("Simple integer %d", (yyvsp[-1].int_exp_val)->int_exp_val.int_val);
-			if (type==3)
-				printf("Add expression");
+			struct print_statement* print_struct = malloc(sizeof(*print_struct));
+			print_struct->print_content = ((yyvsp[-1].int_expression)->int_exp_val).int_val;
+
+			struct statement* curr_statement = malloc(sizeof(*curr_statement));
+			curr_statement->type = 1;
+			curr_statement->statement_val.print_statement_s = *print_struct;
+			
+			//add (curr_statement);
+			//check_head();
+
+			if (!head_defined) {
+				body = malloc(sizeof(*body));
+			}	
+			
+			body->current_statement = *curr_statement;
+			body->defined = 1;
+
+			if (!head_defined) {
+				head = *body;
+				head_defined = 1;
+			}
+
+			body->next = malloc(sizeof(*body));
+			body = body->next;
+			body->defined = 0;
+
+			if ((yyvsp[-1].int_expression)->type==1) {printf("Simple integer %d", (yyvsp[-1].int_expression)->int_exp_val.int_val);}
+			if ((yyvsp[-1].int_expression)->type==4) {printf("Add expression");}
 		}
-#line 1236 "y.tab.c" /* yacc.c:1646  */
+#line 1270 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 3:
-#line 48 "parser.y" /* yacc.c:1646  */
+#line 82 "parser.y" /* yacc.c:1646  */
     {
-			struct int_exp ie = malloc(sizeof(ie));
-			ie.int_const = (yyvsp[0].int_val);
-			
-			(yyval.int_exp_val) = malloc(sizeof((yyval.int_exp_val)));
-			(yyval.int_exp_val)->type = 0;		
-			(yyval.int_exp_val)->int_exp_val.int_val = ie;
+			(yyval.int_expression) = malloc(sizeof(*(yyval.int_expression)));
+			(yyval.int_expression)->type = 1;		
+			(yyval.int_expression)->int_exp_val.int_val = (yyvsp[0].int_val);
 		}
-#line 1249 "y.tab.c" /* yacc.c:1646  */
+#line 1280 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 4:
-#line 57 "parser.y" /* yacc.c:1646  */
+#line 88 "parser.y" /* yacc.c:1646  */
     {
-			struct add_int ai = malloc(sizeof(ai));
-			ai.operand1 = (yyvsp[-2].int_exp_val);
-			ai.operand2 = (yyvsp[0].int_exp_val);
+			struct add_int* ai = malloc(sizeof(*ai));
+			ai->operand1 = (yyvsp[-2].int_expression);
+			ai->operand2 = (yyvsp[0].int_expression);
 			
-			(yyval.int_exp_val) = malloc(sizeof((yyval.int_exp_val)));
-			(yyval.int_exp_val)->type = 3;
-			(yyval.int_exp_val)->int_exp_val.add_int_val = ai;
+			(yyval.int_expression) = malloc(sizeof(*(yyval.int_expression)));
+			(yyval.int_expression)->type = 4;
+			(yyval.int_expression)->int_exp_val.add_int_val = *ai;
+			//TODO: is ai being copied?
+			//If so, this shouldn't be happening as it takes memory
 		}
-#line 1263 "y.tab.c" /* yacc.c:1646  */
+#line 1296 "y.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 1267 "y.tab.c" /* yacc.c:1646  */
+#line 1300 "y.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1491,13 +1524,23 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 67 "parser.y" /* yacc.c:1906  */
+#line 100 "parser.y" /* yacc.c:1906  */
 
+
+void print_ast() {
+	struct statement_link* sl_i = &head;
+	while (sl_i && sl_i->defined) {
+		struct statement statement_i = head.current_statement;
+		printf("new statement");
+		sl_i = sl_i->next;
+	}
+}
 
 int main (void) {
 	/* init symbol table */
-	return yyparse ();
+	int result = yyparse ();
+	print_ast();
+	return result;
 }
 
 void yyerror (char *s) {fprintf (stderr, "%s\n", s);} 
-

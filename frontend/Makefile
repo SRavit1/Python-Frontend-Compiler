@@ -1,7 +1,10 @@
 all : y.tab.c lex.yy.c
 	gcc y.tab.c lex.yy.c -ly -ll
 
-y.tab.c : lex.yy.c
+debug : y.tab.c lex.yy.c
+	gcc -g y.tab.c lex.yy.c -ly -ll
+
+y.tab.c : lex.yy.c parser.y
 	yacc -d parser.y
 
 lex : tokenizer.c lex.yy.c
