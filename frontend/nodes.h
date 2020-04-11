@@ -119,6 +119,11 @@ struct _conditions_chain { //not a node
 	struct _conditions_chain* next_conditions;
 };
 
+struct _parameters_chain {
+	union variable parameter_s;
+	struct _parameters_chain* next_param;
+};
+
 	struct print_statement {
 		struct expression print_content;
 	};
@@ -156,6 +161,11 @@ struct _conditions_chain { //not a node
 		struct statement_link* body;
 	};
 
+	struct function_call_s {
+		char* function_name;
+		
+	}
+
 struct statement {
 	int type;
 	union {
@@ -166,5 +176,6 @@ struct statement {
 		struct elif_statement elif_statement_s;
 		struct else_statement else_statement_s;
 		struct while_loop while_loop_s;
+		struct function_call function_call_s;
 	} statement_val;
 };

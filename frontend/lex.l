@@ -32,7 +32,7 @@ int yylex();
 
 print							return PRINT;
 
-[a-zA-Z_][a-zA-Z_0-9]*			{yylval.string = yytext;
+[a-zA-Z_][a-zA-Z_0-9]*			{yylval.string = strdup(yytext);
 								return IDENTIFIER;}
 
 .								;

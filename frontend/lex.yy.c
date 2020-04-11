@@ -823,7 +823,7 @@ return PRINT;
 case 16:
 YY_RULE_SETUP
 #line 35 "lex.l"
-{yylval.string = yytext;
+{yylval.string = strdup(yytext);
 								return IDENTIFIER;}
 	YY_BREAK
 case 17:

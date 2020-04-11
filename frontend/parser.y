@@ -62,7 +62,7 @@ statement :
 	| IDENTIFIER EQUAL expression
 		{
 			struct assignment* assign_struct = malloc(sizeof(*assign_struct));
-			assign_struct->var_name = $1;
+			assign_struct->var_name = strdup($1);
 			assign_struct->value = *$3;
 			
 			struct statement* assign_statement = malloc(sizeof(*assign_statement));

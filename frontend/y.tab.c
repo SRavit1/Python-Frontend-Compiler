@@ -1276,7 +1276,7 @@ yyreduce:
 #line 63 "parser.y" /* yacc.c:1646  */
     {
 			struct assignment* assign_struct = malloc(sizeof(*assign_struct));
-			assign_struct->var_name = (yyvsp[-2].string);
+			assign_struct->var_name = strdup((yyvsp[-2].string));
 			assign_struct->value = *(yyvsp[0].exp);
 			
 			struct statement* assign_statement = malloc(sizeof(*assign_statement));
