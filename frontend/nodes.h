@@ -6,42 +6,19 @@
 			char* funct_name;
 		};
 
-		struct add_int {
-			struct int_exp* operand1;
-			struct int_exp* operand2;
-		};
-
-		struct sub_int {
-			struct int_exp* operand1;
-			struct int_exp* operand2;
-		};
-
-		struct mul_int {
-			struct int_exp* operand1;
-			struct int_exp* operand2;
-		};
-
-		struct div_int {
-			struct int_exp* operand1;
-			struct int_exp* operand2;
-		};
-
-		struct pow_int {
+		struct int_arith {
+			int type; //add 1, sub 2, mul 3, pow 4, div 5, floor div 6, mod 7
 			struct int_exp* operand1;
 			struct int_exp* operand2;
 		};
 	
 	struct int_exp {
-		int type;
+		int type; //int_val 1, int_var_val 2, int_function_val 3, int_arith_val 4
 		union {
-			int int_val; //1
-			struct int_var int_var_val; //2
-			struct int_function int_function_val; //3
-			struct add_int add_int_val; //4
-			struct sub_int sub_int_val;
-			struct mul_int mul_int_val;
-			struct div_int div_int_val;
-			struct pow_int pow_int_val;
+			int int_val;
+			struct int_var int_var_val;
+			struct int_function int_function_val;
+			struct int_arith int_arith_val;
 		} int_exp_val;
 	};
 
@@ -182,7 +159,7 @@ struct _conditions_chain { //not a node
 };
 
 	struct print_statement {
-		int print_content;
+		struct expression print_content;
 	};
 	
 	struct assignment {
@@ -194,34 +171,34 @@ struct _conditions_chain { //not a node
 		char* function_name;
 		struct expression param; //really should be a list of expressions
 		struct expression ret; //really should be a list of expressions
-		struct code_block* body;
+		struct statement_link* body;
 	};
 	
 	struct if_statement {
 		struct bool_exp condition;
-		struct code_block* body;
+		struct statement_link* body;
 	};
 	
 	struct elif_statement {
 		struct _conditions_chain prev_conditions; //previous if/elif statement conditions
 		struct bool_exp condition;
-		struct code_block* body;
+		struct statement_link* body;
 	};
 	
 	struct else_statement {
 		struct _conditions_chain prev_conditions; //previous if/elif statement conditions
-		struct code_block* body;
+		struct statement_link* body;
 	};
 	
 	struct while_loop {
 		struct bool_exp condition;
-		struct code_block* body;
+		struct statement_link* body;
 	};
 
 struct statement {
 	int type;
 	union {
-		struct print_statement print_statement_s; //1
+		struct print_statement print_statement_s;
 		struct assignment assgn_s;
 		struct function_decl function_decl_s;
 		struct if_statement if_statement_s;
@@ -229,11 +206,4 @@ struct statement {
 		struct else_statement else_statement_s;
 		struct while_loop while_loop_s;
 	} statement_val;
-};
-
-struct statement_link {
-	struct statement current_statement;
-	int defined;
-
-	struct statement_link* next;
 };

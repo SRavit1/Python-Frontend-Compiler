@@ -48,31 +48,46 @@ extern int yydebug;
     INTEGER = 258,
     FLOAT = 259,
     ADD = 260,
-    PRINT = 261,
-    OPEN_PAREN = 262,
-    CLOSE_PAREN = 263
+    SUB = 261,
+    MUL = 262,
+    POW = 263,
+    DIV = 264,
+    FLOOR_DIV = 265,
+    MOD = 266,
+    OPEN_PAREN = 267,
+    CLOSE_PAREN = 268,
+    NEWL = 269,
+    PRINT = 270
   };
 #endif
 /* Tokens.  */
 #define INTEGER 258
 #define FLOAT 259
 #define ADD 260
-#define PRINT 261
-#define OPEN_PAREN 262
-#define CLOSE_PAREN 263
+#define SUB 261
+#define MUL 262
+#define POW 263
+#define DIV 264
+#define FLOOR_DIV 265
+#define MOD 266
+#define OPEN_PAREN 267
+#define CLOSE_PAREN 268
+#define NEWL 269
+#define PRINT 270
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 
 union YYSTYPE
 {
-#line 31 "parser.y" /* yacc.c:1909  */
+#line 12 "parser.y" /* yacc.c:1909  */
 
 	int int_val;
 	float float_val;
 	struct int_exp* int_expression;
+	struct expression* exp;
 
-#line 76 "y.tab.h" /* yacc.c:1909  */
+#line 91 "y.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

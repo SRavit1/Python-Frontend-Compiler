@@ -4,81 +4,77 @@ int yylex();
 
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "nodes.h"
-
-struct statement_link* body;
-struct statement_link head;
-
-int head_defined = 0;
-
-void add (struct statement* ptr) {
-	body->current_statement = *ptr;
-	
-	body = body->next;
-	body = malloc(sizeof(body));
-}
-
-void check_head() {
-	if (!head_defined) {
-		head = *body;
-		//TODO: Is head being copied?
-		head_defined = 1;
-	}
-}
-
+#include "ast_utils.h"
 %}
 
 %union {
 	int int_val;
 	float float_val;
 	struct int_exp* int_expression;
+	struct expression* exp;
 }
-%start statement
+
+%start statement_list
+
 %token <int_val> INTEGER
 %token <float_val> FLOAT
+
 %token ADD
-%token PRINT
+%token SUB
+%token MUL
+%token POW
+%token DIV
+%token FLOOR_DIV
+%token MOD
+
 %token OPEN_PAREN
 %token CLOSE_PAREN
+%token NEWL
+
+%token PRINT
+
 %type <int_expression> int_expression
+%type <exp> expression
 
 %%
+statement_list: statement NEWL | statement_list statement NEWL;
+
 statement :
-	PRINT OPEN_PAREN int_expression CLOSE_PAREN	
+	PRINT OPEN_PAREN expression CLOSE_PAREN
 		{
 			struct print_statement* print_struct = malloc(sizeof(*print_struct));
-			print_struct->print_content = ($3->int_exp_val).int_val;
+			print_struct->print_content = *$3;
 
 			struct statement* curr_statement = malloc(sizeof(*curr_statement));
 			curr_statement->type = 1;
 			curr_statement->statement_val.print_statement_s = *print_struct;
 			
-			//add (curr_statement);
-			//check_head();
-
-			if (!head_defined) {
-				body = malloc(sizeof(*body));
-			}	
-			
-			body->current_statement = *curr_statement;
-			body->defined = 1;
-
-			if (!head_defined) {
-				head = *body;
-				head_defined = 1;
-			}
-
-			body->next = malloc(sizeof(*body));
-			body = body->next;
-			body->defined = 0;
-
-			if ($3->type==1) {printf("Simple integer %d", $3->int_exp_val.int_val);}
-			if ($3->type==4) {printf("Add expression");}
+			add (curr_statement);
 		}
 	;
 
+expression : 
+	OPEN_PAREN expression CLOSE_PAREN
+		{
+			$$ = $2;
+		}
+	| int_expression
+		{
+			$$ = malloc(sizeof(*$$));
+			$$->type = 1;
+			$$->expression_val.int_exp_val = *$1;
+		}
+	;
+
+//TODO: Figure out operator precedence
 int_expression :
-	INTEGER
+	OPEN_PAREN int_expression CLOSE_PAREN
+		{
+			$$ = $2;
+		}
+	| INTEGER
 		{
 			$$ = malloc(sizeof(*$$));
 			$$->type = 1;		
@@ -86,33 +82,25 @@ int_expression :
 		}
 	| int_expression ADD int_expression
 		{
-			struct add_int* ai = malloc(sizeof(*ai));
-			ai->operand1 = $1;
-			ai->operand2 = $3;
+			struct int_arith* add_struct = malloc(sizeof(*add_struct));
+			add_struct->type = 1;
+			add_struct->operand1 = $1;
+			add_struct->operand2 = $3;
 			
 			$$ = malloc(sizeof(*$$));
 			$$->type = 4;
-			$$->int_exp_val.add_int_val = *ai;
+			$$->int_exp_val.int_arith_val = *add_struct;
 			//TODO: is ai being copied?
 			//If so, this shouldn't be happening as it takes memory
 		}
 	;
 %%
 
-void print_ast() {
-	struct statement_link* sl_i = &head;
-	while (sl_i && sl_i->defined) {
-		struct statement statement_i = head.current_statement;
-		printf("new statement");
-		sl_i = sl_i->next;
-	}
-}
 
 int main (void) {
-	/* init symbol table */
 	int result = yyparse ();
-	print_ast();
+	print_ast(head);
 	return result;
 }
 
-void yyerror (char *s) {fprintf (stderr, "%s\n", s);} 
+void yyerror (char *s) {fprintf (stderr, "%s\n", s);}

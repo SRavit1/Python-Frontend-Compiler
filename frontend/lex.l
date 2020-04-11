@@ -8,13 +8,28 @@ int yylex();
 /*TODO: add keywords*/
 
 %%
-print							{return PRINT;}
-(-+)?[1-9][0-9]*				{yylval.int_val = atoi(yytext); return INTEGER;}
+
+(-+)?[1-9][0-9]*				{yylval.int_val = atoi(yytext); 
+								return INTEGER;}
 (-+)?[0-9]*\.[0-9]+ |
-(-+)?[0-9]+\.[0-9]*				{yylval.float_val = atof(yytext); return FLOAT;}
+(-+)?[0-9]+\.[0-9]*				{yylval.float_val = atof(yytext);
+								return FLOAT;}
+
+\+								return ADD;
+\-								return SUB;
+\*								return MUL;
+\**								return POW;
+\/								return DIV;
+\/\/							return FLOOR_DIV;
+\%								return MOD;
+
 \(								return OPEN_PAREN;
 \)								return CLOSE_PAREN;
-\+								return ADD;
+
+\n								return NEWL;
+
+print							return PRINT;
+
 .								;
 %%
 
@@ -43,14 +58,6 @@ int yywrap (void) {return 1;}
 ;								return SEMICOLON;
 =								return EQUAL;
 
-\+								return ADD;
-\-								return SUB;
-\*								return STAR;
-\**								return POW;
-\/								return DIV;
-\/\/							return FLOOR_DIV;
-\%								return MOD;
-
 \+=								return ADD_ASSIGN;
 -=								return SUB_ASSIGN;
 \*=								return MUL_ASSIGN;
@@ -70,7 +77,6 @@ int yywrap (void) {return 1;}
 >=								return GREATER_EQUAL_TO;
 ==								return EQUAL_TO;
 !=								return NOT_EQUAL_TO;
-
-.								return UNKNOWN;*/
+*/
 
 
