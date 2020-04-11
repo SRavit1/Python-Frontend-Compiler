@@ -45,6 +45,9 @@ void add (struct statement* curr_statement) {
 				}
 				break;
 			case 2: //integer variable
+				{
+					_print_indent("integer variable", indent_level);
+				}
 				break;
 			case 3: //integer function
 				break;
@@ -89,6 +92,12 @@ void print_statement(struct statement* statement_i, int indent_level) {
 			print_expression(&(statement_i->statement_val.print_statement_s.print_content), indent_level+1);
 			}
 			break;
+		case 2: //Assign statement
+			{
+			_print_indent("assign statement", indent_level);
+			print_expression(&(statement_i->statement_val.assign_s.value), indent_level+1);
+			}
+			break;		
 		default:
 			printf("Error");
 	}

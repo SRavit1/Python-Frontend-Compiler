@@ -47,33 +47,37 @@ extern int yydebug;
   {
     INTEGER = 258,
     FLOAT = 259,
-    ADD = 260,
-    SUB = 261,
-    MUL = 262,
-    POW = 263,
-    DIV = 264,
-    FLOOR_DIV = 265,
-    MOD = 266,
-    OPEN_PAREN = 267,
-    CLOSE_PAREN = 268,
-    NEWL = 269,
-    PRINT = 270
+    EQUAL = 260,
+    ADD = 261,
+    SUB = 262,
+    MUL = 263,
+    POW = 264,
+    DIV = 265,
+    FLOOR_DIV = 266,
+    MOD = 267,
+    OPEN_PAREN = 268,
+    CLOSE_PAREN = 269,
+    NEWL = 270,
+    PRINT = 271,
+    IDENTIFIER = 272
   };
 #endif
 /* Tokens.  */
 #define INTEGER 258
 #define FLOAT 259
-#define ADD 260
-#define SUB 261
-#define MUL 262
-#define POW 263
-#define DIV 264
-#define FLOOR_DIV 265
-#define MOD 266
-#define OPEN_PAREN 267
-#define CLOSE_PAREN 268
-#define NEWL 269
-#define PRINT 270
+#define EQUAL 260
+#define ADD 261
+#define SUB 262
+#define MUL 263
+#define POW 264
+#define DIV 265
+#define FLOOR_DIV 266
+#define MOD 267
+#define OPEN_PAREN 268
+#define CLOSE_PAREN 269
+#define NEWL 270
+#define PRINT 271
+#define IDENTIFIER 272
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
@@ -86,8 +90,9 @@ union YYSTYPE
 	float float_val;
 	struct int_exp* int_expression;
 	struct expression* exp;
+	char* string;
 
-#line 91 "y.tab.h" /* yacc.c:1909  */
+#line 96 "y.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

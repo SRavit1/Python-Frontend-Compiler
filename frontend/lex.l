@@ -15,6 +15,8 @@ int yylex();
 (-+)?[0-9]+\.[0-9]*				{yylval.float_val = atof(yytext);
 								return FLOAT;}
 
+\=								return EQUAL;
+
 \+								return ADD;
 \-								return SUB;
 \*								return MUL;
@@ -29,6 +31,9 @@ int yylex();
 \n								return NEWL;
 
 print							return PRINT;
+
+[a-zA-Z_][a-zA-Z_0-9]*			{yylval.string = yytext;
+								return IDENTIFIER;}
 
 .								;
 %%
