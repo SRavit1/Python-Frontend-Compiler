@@ -114,12 +114,19 @@ struct expression {
 	} expression_val;
 };
 
+union variable{
+	struct int_var int_v;
+	struct float_var float_v;
+	struct string_var string_v;
+	struct bool_var bool_v;
+};
+
 struct _conditions_chain { //not a node
 	struct bool_exp current_condition;
 	struct _conditions_chain* next_conditions;
 };
 
-struct _parameters_chain {
+struct _variable_chain {
 	union variable parameter_s;
 	struct _parameters_chain* next_param;
 };
@@ -161,10 +168,10 @@ struct _parameters_chain {
 		struct statement_link* body;
 	};
 
-	struct function_call_s {
+	struct function_call {
 		char* function_name;
-		
-	}
+		struct _variable_chain parameters;
+	};
 
 struct statement {
 	int type;
