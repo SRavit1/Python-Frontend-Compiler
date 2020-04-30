@@ -1,20 +1,14 @@
-all : y.tab.c lex.yy.c
-	gcc y.tab.c lex.yy.c -ly -ll
-
-debug : y.tab.c lex.yy.c
-	gcc -g y.tab.c lex.yy.c -ly -ll
-
-y.tab.c : lex.yy.c parser.y
-	yacc -d parser.y
-
-lex : tokenizer.c lex.yy.c
-	gcc tokenizer.c lex.yy.c
-
-lex-debug : lexer.c lex.yy.c
-	gcc -g lexer.c lex.yy.c
+all : main.h codegen.h checker.h optimizer.h nodescpp.h lex.yy.c parser.tab.c parser.tab.h
+	g++ -g -O0 parser.tab.c lex.yy.c -ly -ll `llvm-config --cxxflags --ldflags --system-libs --libs core`
 
 lex.yy.c : lex.l
 	lex lex.l
 
-clean :
-	rm lex.yy.c a.out y.tab.*
+parser.tab.c : parser.y
+	bison -d parser.y
+
+parser.tab.h : parser.y
+	bison -d parser.y
+
+clean : 
+	rm lex.yy.* parser.tab.* a.out

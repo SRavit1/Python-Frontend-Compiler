@@ -6,34 +6,16 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/Support/raw_ostream.h"
+
+#include <iostream>
+#include <fstream>
 
 static LLVMContext TheContext;
 static IRBuilder<> Builder(TheContext);
 static std::unique_ptr<Module> TheModule = make_unique<Module>("my cool jit", TheContext);;
 static std::map<std::string, Value *> NamedValues;
-
-Type* getType (int type, LLVMContext TheContext) {
-	Type *type_obj = NULL;
-	switch(type) {
-		case -1:
-			type_obj = Type::getVoidTy(TheContext);
-			break;
-		case 0:
-			type_obj = Type::getInt32Ty(TheContext);
-			break;
-		case 1:
-			type_obj = Type::getFloatTy(TheContext);
-			break;
-		case 2:
-			//cannot find what is appropriate type for string ??
-			break;
-		case 3:
-			type_obj = Type::getInt1Ty(TheContext);
-		default:
-			break;
-	}
-    return type_obj;
-}
 
 std::unique_ptr<expression> LogError(const char *Str) {
   fprintf(stderr, "Error: %s\n", Str);
@@ -48,19 +30,27 @@ Value *LogErrorV(const char *Str) {
 Value *binary_expression::codegen() {
 	Value* L = LHS->codegen();
 	Value* R = RHS->codegen();
-
+	
+	Value* output = NULL;
 	switch(Op) {
 		case '+':
-			return Builder.CreateAdd(L, R, "");
+			output = Builder.CreateAdd(L, R, name);
         case '-':
-			return Builder.CreateSub(L, R, "");
+			output = Builder.CreateSub(L, R, name);
         case '*':
-			return Builder.CreateMul(L, R, "");
+			output = Builder.CreateMul(L, R, name);
         case '/':
-            return Builder.CreateSDiv(L, R, "");
+            output = Builder.CreateSDiv(L, R, name);
 			//TODO: check what is correct div
+		default:
+			return output;
 	}
-	return NULL;
+
+	if (name != "") {
+		NamedValues[name] = output;
+	}
+
+	return output;
 }
 
 Value *variable::codegen() {
@@ -68,7 +58,7 @@ Value *variable::codegen() {
 }
 
 Value *integer_const::codegen() {
-	return ConstantInt::get(TheContext, APInt(8, val));
+	return ConstantInt::get(TheContext, APInt(32, val));
 }
 
 Value *float_const::codegen() {
@@ -88,11 +78,11 @@ Value *function_call::codegen() {
 	Function *callee = TheModule->getFunction(function_name);
 
 	if (!callee)
-	return LogErrorV("Unknown function referenced");
+		return LogErrorV("Unknown function referenced");
 
 	// If argument mismatch error.
 	if (callee->arg_size() != args.size())
-	return LogErrorV("Incorrect # arguments passed");
+		return LogErrorV("Incorrect # arguments passed");
 
 	std::vector<Value *> args_value;
 	for (unsigned i = 0, e = args.size(); i != e; ++i) {
@@ -101,7 +91,7 @@ Value *function_call::codegen() {
 		return nullptr;
 	}
 
-	return Builder.CreateCall(callee, args_value, "calltmp");
+	return Builder.CreateCall(callee, args_value, name);
 }
 
 Value *return_statement::codegen() {
@@ -109,9 +99,50 @@ Value *return_statement::codegen() {
 }
 
 Function *function_exp::codegen() {
-	std::vector <Type *> args_obj (arg_names.size(), Type::getFloatTy(TheContext));
+	std::vector <Type *> args_obj = {};
 	
-	Type *ret_type_obj = getType(ret_type, TheContext);
+	for (int arg_type : arg_types) {
+		Type *arg_type_obj = Type::getVoidTy(TheContext);
+		switch(arg_type) {
+			case -1: //void
+				break;
+			case 0: //int
+				arg_type_obj = Type::getInt32Ty(TheContext);
+				break;
+			case 1: //float
+				arg_type_obj = Type::getFloatTy(TheContext);
+				break;
+			case 2: //string
+				//cannot find what is appropriate type for string ??
+				break;
+			case 3: //bool
+				arg_type_obj = Type::getInt1Ty(TheContext);
+				break;
+			default:
+				break;
+		}
+		args_obj.push_back(arg_type_obj);
+	}
+
+	Type *ret_type_obj = Type::getVoidTy(TheContext);
+	switch(ret_type) {
+		case -1: //void
+			break;
+		case 0: //int
+			ret_type_obj = Type::getInt32Ty(TheContext);
+			break;
+		case 1: //float
+			ret_type_obj = Type::getFloatTy(TheContext);
+			break;
+		case 2: //string
+			//cannot find what is appropriate type for string ??
+			break;
+		case 3: //bool
+			ret_type_obj = Type::getInt1Ty(TheContext);
+			break;
+		default:
+			break;
+	}
 	
 	FunctionType *FT = FunctionType::get(ret_type_obj, args_obj, false);
 	Function *TheFunction = Function::Create(FT, Function::ExternalLinkage, function_name, TheModule.get());
@@ -140,4 +171,12 @@ Function *function_exp::codegen() {
 	// Error reading body, remove function.
 	TheFunction->eraseFromParent();
 	return nullptr;
+}
+
+void codegen(const std::vector<function_exp*> statements) {
+	for (auto statement : statements) {
+		statement->codegen();
+	}
+
+	TheModule->print(errs(), nullptr);
 }

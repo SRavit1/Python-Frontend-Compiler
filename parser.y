@@ -4,142 +4,230 @@ int yylex();
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
 
-#include "nodes.h"
-#include "ast_utils.h"
+#include "main.h"
+#include "nodescpp.h"
+
+std::vector<function_exp*> program = {};
+std::vector<expression*> main_block = {};
+std::vector<expression*>* current_block = {};
 %}
 
 %union {
 	int int_val;
 	float float_val;
-	struct int_exp* int_expression;
-	struct expression* exp;
-	char* string;
+	bool bool_val;
+	char char_val;
+
+	std::string* string_val;
+	class expression* exp; //Problem: Object slicing occurs when assigning derived class to base class
+	class function_exp* fexp;
+	std::vector<expression*>* expl;
+	std::vector<std::string>* strl;
 }
 
 %start statement_list
 
-%token <int_val> INTEGER
-%token <float_val> FLOAT
+%token DEF
+%token RET
 
 %token EQUAL
-
-%token ADD
-%token SUB
-%token MUL
-%token POW
-%token DIV
-%token FLOOR_DIV
-%token MOD
-
-%token OPEN_PAREN
-%token CLOSE_PAREN
 %token NEWL
 
-%token PRINT
+%token <string_val> IDENTIFIER
+%token <int_val> INT_TOKEN
+%token <float_val> FLOAT_TOKEN
+%token <string_val> STRING_TOKEN
+%token <int_val> BOOL_TOKEN
 
-%token <string> IDENTIFIER
+%type <char_val> OP
 
-%type <int_expression> int_expression
+%type <exp> statement
+%type <fexp> function_declaration
+
+%type <exp> assignment
+%type <exp> function_call
+%type <exp> return
+
+%type <expl> args_list
+%type <strl> param_list
+%type <expl> body
+
 %type <exp> expression
-%type <int_val> OP
+%type <exp> binary_expression
+%type <exp> variable
+%type <exp> integer
+%type <exp> float
+%type <exp> string
+%type <exp> bool
 
 %%
-statement_list: statement NEWL | statement_list statement NEWL;
+statement_list: top_statement NEWL | statement_list top_statement NEWL;
 
-statement :
-	PRINT OPEN_PAREN expression CLOSE_PAREN
+top_statement:
+	statement { main_block.push_back($1); }
+	| function_declaration { program.push_back($1); }
+	;
+
+statement:
+	assignment { $$ = $1; }
+	| function_call { $$ = $1; }
+	| return { $$ = $1; }
+	/*TODO: should not be called at top level*/
+	/*TODO: Add while loop, control statement_list*/
+	;
+
+assignment:
+	IDENTIFIER EQUAL expression
 		{
-			struct print_statement* print_struct = malloc(sizeof(*print_struct));
-			print_struct->print_content = *$3;
+			$$ = $3;
+			std::cout<<"Assignment pointer " << $$ << std::endl;
 
-			struct statement* print_statement = malloc(sizeof(*print_statement));
-			print_statement->type = 1;
-			print_statement->statement_val.print_statement_s = *print_struct;
-			
-			add (print_statement);
-		}
-	| IDENTIFIER EQUAL expression
-		{
-			struct assignment* assign_struct = malloc(sizeof(*assign_struct));
-			assign_struct->var_name = strdup($1);
-			assign_struct->value = *$3;
-			
-			struct statement* assign_statement = malloc(sizeof(*assign_statement));
-			assign_statement->type = 2;
-			assign_statement->statement_val.assign_s = *assign_struct;
-
-			add (assign_statement);
+			std::cout<< $$->getName() << std::flush;
+			//$$->setName("something");
 		}
 	;
 
-expression : 
-	OPEN_PAREN expression CLOSE_PAREN
+function_call:
+	IDENTIFIER "(" args_list ")"
 		{
-			$$ = $2;
+			$$ = new function_call(*$1, *$3);
 		}
-	| int_expression
+	;
+args_list:
+	expression
 		{
-			$$ = malloc(sizeof(*$$));
-			$$->type = 1;
-			$$->expression_val.int_exp_val = *$1;
+			std::vector<expression*> expl;
+			expl.push_back($1);
+			$$ = &expl;
+		}
+	| args_list "," expression
+		{
+			$$=$1;
+			$$->push_back($3);
+		}
+	;
+return:
+	RET expression
+		{
+			$$ = new return_statement($2);
 		}
 	;
 
-//TODO: Figure out operator precedence
-int_expression :
-	OPEN_PAREN int_expression CLOSE_PAREN
+function_declaration:
+	DEF IDENTIFIER "(" param_list ")" ":" "\n" "{" body "}"
 		{
-			$$ = $2;
+			//TODO: Don't know ret type at this point
+			std::string function_name = *$2;
+			std::vector<int> arg_types($4->size());
+			std::vector<std::string> arg_names = *$4;
+			int ret_type = 0;
+			std::vector<expression*> body = *$9;
+			$$ = new function_exp(function_name, arg_types, arg_names, ret_type, body);
 		}
-	| INTEGER
-		{
-			$$ = malloc(sizeof(*$$));
-			$$->type = 1;
+	;
 
-			$$->int_exp_val.int_val = $1;
+param_list:
+	param_list "," IDENTIFIER
+		{
+			$$ = $1;
+			$$->push_back(*$3);
 		}
 	| IDENTIFIER
 		{
-			$$ = malloc(sizeof(*$$));
-			$$->type = 2;
-
-			struct int_var* int_var_struct = malloc(sizeof(*int_var_struct));
-			int_var_struct->var_name = $1;
-
-			$$->int_exp_val.int_var_val = *int_var_struct;
-		}	
-	| int_expression OP int_expression
-		{
-			$$ = malloc(sizeof(*$$));
-			$$->type = 4;
-
-			struct int_arith* add_struct = malloc(sizeof(*add_struct));
-			add_struct->type = $2;
-			add_struct->operand1 = $1;
-			add_struct->operand2 = $3;
-
-			$$->int_exp_val.int_arith_val = *add_struct;
-			//TODO: is ai being copied?
-			//If so, this shouldn't be happening as it takes memory
+			std::vector<std::string> ident;
+			ident.push_back(*$1);
+			$$ = &ident;
 		}
-	| int_expression SUB int_expression
+
+	;	
+
+body:
+	statement "\n" body
+		{
+			current_block->push_back($1);
+		}
+	| statement "\n"
+		{
+			current_block->push_back($1);
+		}
+
 	;
 
-OP :
-	ADD				{$$=1;}
-	| SUB			{$$=2;}
-	| MUL			{$$=3;}
-	| POW			{$$=4;}
-	| DIV			{$$=5;}
-	| FLOOR_DIV		{$$=6;}
-	| MOD			{$$=7;}
+expression: 
+	"(" expression ")" { $$ = $2; }
+	| binary_expression { $$ = $1; }
+	| variable { $$ = $1; }
+	| function_call { $$ = $1; }
+	| integer { $$ = $1; 
+	std::cout<< "Pointer to exp " << $$ << std::endl << std::flush;
+	std::cout<< "Name of exp " << $$->getName() << std::endl << std::flush; }
+	| float { $$ = $1; }
+	| string { $$ = $1; }
+	| bool { $$ = $1; }
+	;
+
+binary_expression:
+	expression OP expression
+		{
+			$$ = new binary_expression($2, $1, $3);
+		}
+	;
+
+variable:
+	IDENTIFIER
+		{
+			$$ = new variable(*$1);
+		}
+	;
+integer:
+	INT_TOKEN
+		{
+			//integer_const* int_tok = new integer_const($1);
+			integer_const int_tok($1);
+			$$ = &int_tok;
+
+			$$->setName("int_name");
+		}
+	;
+float:
+	FLOAT_TOKEN
+		{
+			$$ = new float_const($1);
+		}
+	;
+string:
+	STRING_TOKEN
+		{
+			$$ = new string_const(*$1);
+		}
+	;
+bool:
+	BOOL_TOKEN
+		{
+			$$ = new bool_const($1);
+		}
+	;
+OP:
+	'+'				{$$ = '+';}
+	| '-'			{$$ = '-';}
+	| '*'			{$$ = '*';}
+	| '/'			{$$ = '/';}
+	;
 %%
 
 
 int main (void) {
+	function_exp* main = new function_exp("main", {}, {}, 0, main_block);
+
+	current_block = &main_block;
+	program.push_back(main);
+
 	int result = yyparse ();
-	print_ast(head);
+	
+	compile(program);
+
 	return result;
 }
 
