@@ -20,7 +20,7 @@ std::vector<expression*>* current_block = {};
 	bool bool_val;
 	char char_val;
 
-	std::string* string_val;
+	char* string_val;
 	class expression* exp; //Problem: Object slicing occurs when assigning derived class to base class
 	class function_exp* fexp;
 	std::vector<expression*>* expl;
@@ -57,12 +57,9 @@ std::vector<expression*>* current_block = {};
 %type <exp> expression
 %type <exp> binary_expression
 %type <exp> variable
-%type <exp> integer
-%type <exp> float
-%type <exp> string
-%type <exp> bool
 
 %%
+
 statement_list: top_statement NEWL | statement_list top_statement NEWL;
 
 top_statement:
@@ -71,7 +68,9 @@ top_statement:
 	;
 
 statement:
-	assignment { $$ = $1; }
+	assignment {
+		$$ = $1;
+	}
 	| function_call { $$ = $1; }
 	| return { $$ = $1; }
 	/*TODO: should not be called at top level*/
@@ -82,17 +81,14 @@ assignment:
 	IDENTIFIER EQUAL expression
 		{
 			$$ = $3;
-			std::cout<<"Assignment pointer " << $$ << std::endl;
-
-			std::cout<< $$->getName() << std::flush;
-			//$$->setName("something");
 		}
 	;
 
 function_call:
 	IDENTIFIER "(" args_list ")"
 		{
-			$$ = new function_call(*$1, *$3);
+			function_call curr_fc($1, *$3);
+			$$ = &curr_fc;
 		}
 	;
 args_list:
@@ -111,7 +107,8 @@ args_list:
 return:
 	RET expression
 		{
-			$$ = new return_statement($2);
+			return_statement curr_rs($2);
+			$$ = &curr_rs;
 		}
 	;
 
@@ -119,12 +116,14 @@ function_declaration:
 	DEF IDENTIFIER "(" param_list ")" ":" "\n" "{" body "}"
 		{
 			//TODO: Don't know ret type at this point
-			std::string function_name = *$2;
+			char* function_name = $2;
 			std::vector<int> arg_types($4->size());
 			std::vector<std::string> arg_names = *$4;
 			int ret_type = 0;
 			std::vector<expression*> body = *$9;
-			$$ = new function_exp(function_name, arg_types, arg_names, ret_type, body);
+			
+			function_exp curr_fe(function_name, arg_types, arg_names, ret_type, body);
+			$$ = &curr_fe;
 		}
 	;
 
@@ -132,12 +131,12 @@ param_list:
 	param_list "," IDENTIFIER
 		{
 			$$ = $1;
-			$$->push_back(*$3);
+			$$->push_back($3);
 		}
 	| IDENTIFIER
 		{
 			std::vector<std::string> ident;
-			ident.push_back(*$1);
+			ident.push_back($1);
 			$$ = &ident;
 		}
 
@@ -160,53 +159,39 @@ expression:
 	| binary_expression { $$ = $1; }
 	| variable { $$ = $1; }
 	| function_call { $$ = $1; }
-	| integer { $$ = $1; 
-	std::cout<< "Pointer to exp " << $$ << std::endl << std::flush;
-	std::cout<< "Name of exp " << $$->getName() << std::endl << std::flush; }
-	| float { $$ = $1; }
-	| string { $$ = $1; }
-	| bool { $$ = $1; }
+	| INT_TOKEN {
+		integer_const int_tok($1);
+		$$ = &int_tok;
+		std::string newName = "happy";
+		char newNameC[5] = {'h', 'a', 'p', 'p', 'y'};
+		$$->setName(newNameC);
+	}
+	| FLOAT_TOKEN {
+		float_const float_tok($1);
+		$$ = &float_tok;
+	}
+	| STRING_TOKEN {
+		string_const string_tok($1);
+		$$ = &string_tok;
+	}
+	| BOOL_TOKEN {
+		bool_const bool_tok($1);
+		$$ = &bool_tok;
+	}
 	;
 
 binary_expression:
 	expression OP expression
 		{
-			$$ = new binary_expression($2, $1, $3);
+			binary_expression be($2, $1, $3);
+			$$ = &be;
 		}
 	;
 
 variable:
 	IDENTIFIER
 		{
-			$$ = new variable(*$1);
-		}
-	;
-integer:
-	INT_TOKEN
-		{
-			//integer_const* int_tok = new integer_const($1);
-			integer_const int_tok($1);
-			$$ = &int_tok;
-
-			$$->setName("int_name");
-		}
-	;
-float:
-	FLOAT_TOKEN
-		{
-			$$ = new float_const($1);
-		}
-	;
-string:
-	STRING_TOKEN
-		{
-			$$ = new string_const(*$1);
-		}
-	;
-bool:
-	BOOL_TOKEN
-		{
-			$$ = new bool_const($1);
+			$$ = new variable($1);
 		}
 	;
 OP:
@@ -219,13 +204,18 @@ OP:
 
 
 int main (void) {
-	function_exp* main = new function_exp("main", {}, {}, 0, main_block);
+	std::string main_name = "main";
+	function_exp main(main_name.c_str(), {}, {}, 0, main_block);
 
 	current_block = &main_block;
-	program.push_back(main);
+	program.push_back(&main);
 
 	int result = yyparse ();
 	
+	for (expression* statement : main_block) {
+		std::cout << "Statement " << statement->getType() << "\n";
+	}
+
 	compile(program);
 
 	return result;

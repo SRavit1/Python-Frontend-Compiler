@@ -14,7 +14,7 @@
 
 static LLVMContext TheContext;
 static IRBuilder<> Builder(TheContext);
-static std::unique_ptr<Module> TheModule = make_unique<Module>("my cool jit", TheContext);;
+static std::unique_ptr<Module> TheModule = make_unique<Module>("my cool jit", TheContext);
 static std::map<std::string, Value *> NamedValues;
 
 std::unique_ptr<expression> LogError(const char *Str) {
@@ -35,18 +35,22 @@ Value *binary_expression::codegen() {
 	switch(Op) {
 		case '+':
 			output = Builder.CreateAdd(L, R, name);
+			break;
         case '-':
 			output = Builder.CreateSub(L, R, name);
+			break;
         case '*':
 			output = Builder.CreateMul(L, R, name);
+			break;
         case '/':
             output = Builder.CreateSDiv(L, R, name);
+			break;
 			//TODO: check what is correct div
 		default:
 			return output;
 	}
 
-	if (name != "") {
+	if (name != 0) {
 		NamedValues[name] = output;
 	}
 

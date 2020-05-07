@@ -29,87 +29,107 @@ using namespace llvm;
 
 namespace {	
 	class expression {
-		std::string name;
+		char* name;
 		public:
 			virtual ~expression() = default;
 			virtual Value *codegen() = 0;
-			void setName(std::string newName) { name = newName; }
-			std::string getName() { return name; }
+			virtual std::string getType() = 0;
+			void setName(char* newName) { name = newName; }
+			const char *getName() { return name; }
 	};
 
 	class binary_expression : public expression {
 		char Op;
 		expression* LHS;
 		expression* RHS;
-		std::string name;
+		char* name;
 		public:
-			binary_expression(char Op, expression* LHS, expression* RHS) : Op(Op), LHS(LHS), RHS(RHS), name("") {}
-			binary_expression(char Op, expression* LHS, expression* RHS, const std::string name) : Op(Op), LHS(LHS), RHS(RHS), name(name) {}
+			binary_expression(char Op, expression* LHS, expression* RHS) : Op(Op), LHS(LHS), RHS(RHS), name(0) {}
+			binary_expression(char Op, expression* LHS, expression* RHS, char* name) : Op(Op), LHS(LHS), RHS(RHS), name(name) {}
 			Value *codegen() override;
-			void setName(std::string newName) { name = newName; }
-			std::string getName() { return name; }
+			virtual std::string getType() { return "binary_expression"; };
+			void setName(char* newName) { name = newName; }
+			const char *getName() { return name; }
 	};
 
 	class variable : public expression {
-		std::string name;
+		char* name;
 		public:
-			variable(const std::string name) : name(name) {}
+			variable(char* name) : name(name) {}
 			Value *codegen() override;
-			void setName(std::string newName) { name = newName; }
-			std::string getName() { return name; }
+			virtual std::string getType() { return "variable"; };
+			void setName(char* newName) { name = newName; }
+			const char *getName() { return name; }
 	};
 
 	//TODO: figure out how to store unnamed variable into IR (e.g. "%3 = i32 52")
-	//TODO: for integer, float, string, bool const, add "std::string name" field
+	//TODO: for integer, float, string, bool const, add "char* name" field
 	class integer_const : public expression {
 		int val;
-		std::string name;
+		const char* name;
 		public:
-			integer_const(int val) : val(val), name("") {}
+			integer_const(int val) : val(val) {
+				std::string newName = "";
+				name = newName.c_str();
+			}
 			Value *codegen() override;
-			void setName(std::string newName) { name = newName; }
-			std::string getName() { return name; }
+			virtual std::string getType() { return "integer_const"; };
+			void setName(const char* newName) { name = newName; }
+			const char *getName() { return name; }
 	};
 
 	class float_const : public expression {
 		float val;
-		std::string name;
+		const char* name;
 		public:
-			float_const(float val) : val(val), name("") {}
+			float_const(float val) : val(val) {
+				std::string newName = "";
+				name = newName.c_str();
+			}
 			Value *codegen() override;
-			void setName(std::string newName) { name = newName; }
-			std::string getName() { return name; }
+			virtual std::string getType() { return "float_const"; };
+			void setName(const char* newName) { name = newName; }
+			const char *getName() { return name; }
 	};
 
 	class string_const : public expression {
 		std::string val;
-		std::string name;
+		const char* name;
 		public:
-			string_const(std::string val) : val(val), name("") {}
+			string_const(std::string val) : val(val) {
+				std::string newName = "";
+				name = newName.c_str();
+			}
 			Value *codegen() override;
-			void setName(std::string newName) { name = newName; }
-			std::string getName() { return name; }
+			virtual std::string getType() { return "string_const"; };
+			void setName(const char* newName) { name = newName; }
+			const char *getName() { return name; }
 	};
 
 	class bool_const : public expression {
 		bool val;
-		std::string name;
+		const char* name;
 		public:
-			bool_const(bool val) : val(val), name("") {}
+			bool_const(bool val) : val(val) {
+				std::string newName = "";
+				name = newName.c_str();
+			}
 			Value *codegen() override;
-			void setName(std::string newName) { name = newName; }
-			std::string getName() { return name; }
+			virtual std::string getType() { return "bool_const"; };
+			void setName(const char* newName) { name = newName; }
+			const char *getName() { return name; }
 	};
 
 	class function_call : public expression {
 		std::string function_name;
 		std::vector<expression*> args;
-		std::string name;
+		char* name;
 		public:
-			function_call(std::string function_name, std::vector<expression*> args) : function_name(function_name), args(args), name("") {}
-			function_call(std::string function_name, std::vector<expression*> args, const std::string call_name) : function_name(function_name), args(args), name(call_name) {}
+			function_call(std::string function_name, std::vector<expression*> args) : function_name(function_name), args(args), name(0) {}
+			function_call(std::string function_name, std::vector<expression*> args, char* call_name) : function_name(function_name), args(args), name(call_name) {}
 			Value *codegen() override;
-			std::string getName() { return function_name; }
+			virtual std::string getType() { return "function_call"; };
+			char *getName() { return name; }
 	};
 
 	class return_statement : public expression {
@@ -117,18 +137,19 @@ namespace {
 		public:
 			return_statement(expression* return_val) : return_val(std::move(return_val)) {}
 			Value *codegen() override;
+			virtual std::string getType() { return "return_statement"; };
 	};
 
 	class function_exp {
-		std::string function_name;
+		const char* function_name;
 		std::vector<int> arg_types;
 		std::vector<std::string> arg_names;
 		int ret_type;
 		std::vector<expression*> body;
 		public:
-			function_exp(const std::string function_name, std::vector<int> arg_types, std::vector<std::string> arg_names, int ret_type, std::vector<expression*> body)
+			function_exp(const char* function_name, std::vector<int> arg_types, std::vector<std::string> arg_names, int ret_type, std::vector<expression*> body)
 				 : function_name(function_name), arg_types(std::move(arg_types)), arg_names(std::move(arg_names)), ret_type(ret_type), body(std::move(body)) {}
 			Function *codegen();
-			std::string getName() { return function_name; }
+			const char *getName() { return function_name; }
 	};
 }

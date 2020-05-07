@@ -69,7 +69,7 @@ union YYSTYPE
 	bool bool_val;
 	char char_val;
 
-	std::string* string_val;
+	char* string_val;
 	class expression* exp; //Problem: Object slicing occurs when assigning derived class to base class
 	class function_exp* fexp;
 	std::vector<expression*>* expl;
