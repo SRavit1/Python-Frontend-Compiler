@@ -34,6 +34,8 @@ return							return RET;
 [a-zA-Z_][a-zA-Z_0-9]*			{
 								yylval.string_val = strdup(yytext);
 								return IDENTIFIER;}
+
+[-+*/]    {yylval.string_val = strdup(yytext); return OP;}
 %%
 
 int yywrap (void) {return 1;}

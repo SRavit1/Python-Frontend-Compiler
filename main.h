@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 std::vector<function_exp*> getStatements() {
+  /*
     TheModule = make_unique<Module>("Program", TheContext);
 
 	auto *ret_exp = new return_statement(new integer_const(5));
@@ -19,13 +20,15 @@ std::vector<function_exp*> getStatements() {
 	statements.push_back(main);
 
     return statements;
+    */
+  return std::vector<function_exp*>();
 }
 
 int compile (std::vector<function_exp*> program) {
-	if(checkProgram(program))
-        perror("Program sanity check");
-    std::vector<function_exp*> optimized = optimizeProgram(program);
+	//if(checkProgram(program))
+   //     perror("Program sanity check");
+   // std::vector<function_exp*> optimized = optimizeProgram(program);
 	codegen(program);
 	
-	return 1;
+	return 0;
 }

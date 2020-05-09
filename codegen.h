@@ -31,34 +31,25 @@ Value *binary_expression::codegen() {
 	Value* L = LHS->codegen();
 	Value* R = RHS->codegen();
 	
-	Value* output = NULL;
-	switch(Op) {
-		case '+':
-			output = Builder.CreateAdd(L, R, name);
-			break;
-        case '-':
-			output = Builder.CreateSub(L, R, name);
-			break;
-        case '*':
-			output = Builder.CreateMul(L, R, name);
-			break;
-        case '/':
-            output = Builder.CreateSDiv(L, R, name);
-			break;
-			//TODO: check what is correct div
-		default:
-			return output;
-	}
+	Value* output = nullptr;
+  if (Op == "+")
+			output = Builder.CreateAdd(L, R, getName());
+  else if (Op == "-")
+			output = Builder.CreateSub(L, R, getName());
+  else if (Op == "*")
+			output = Builder.CreateMul(L, R, getName());
+  else if (Op == "/")
+			output = Builder.CreateSDiv(L, R, getName());
 
-	if (name != 0) {
-		NamedValues[name] = output;
+	if (getName() != "") {
+		NamedValues[getName()] = output;
 	}
 
 	return output;
 }
 
 Value *variable::codegen() {
-	return NamedValues[name];
+	return NamedValues[getName()];
 }
 
 Value *integer_const::codegen() {
@@ -78,7 +69,7 @@ Value *bool_const::codegen() {
 }
 
 Value *function_call::codegen() {
-	// Look up the name in the global module table.
+	// Look up the getName() in the global module table.
 	Function *callee = TheModule->getFunction(function_name);
 
 	if (!callee)
@@ -95,7 +86,7 @@ Value *function_call::codegen() {
 		return nullptr;
 	}
 
-	return Builder.CreateCall(callee, args_value, name);
+	return Builder.CreateCall(callee, args_value, getName());
 }
 
 Value *return_statement::codegen() {
@@ -103,7 +94,7 @@ Value *return_statement::codegen() {
 }
 
 Function *function_exp::codegen() {
-	std::vector <Type *> args_obj = {};
+	std::vector <Type *> args_obj;
 	
 	for (int arg_type : arg_types) {
 		Type *arg_type_obj = Type::getVoidTy(TheContext);
@@ -151,7 +142,7 @@ Function *function_exp::codegen() {
 	FunctionType *FT = FunctionType::get(ret_type_obj, args_obj, false);
 	Function *TheFunction = Function::Create(FT, Function::ExternalLinkage, function_name, TheModule.get());
 
-	// Set names for all arguments.
+	// Set getName()s for all arguments.
 	unsigned Idx = 0;
 	for (auto &arg : TheFunction->args())
 		arg.setName(arg_names[Idx++]);

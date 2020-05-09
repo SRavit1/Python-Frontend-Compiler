@@ -9,6 +9,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/ADT/StringRef.h"
 
 #include <algorithm>
 #include <cctype>
@@ -27,129 +28,114 @@ using namespace llvm;
 //	a particular derived class is stored in expression?
 //what is a namespace?
 
-namespace {	
 	class expression {
-		char* name;
+      std::string name;
 		public:
+      explicit expression(llvm::StringRef name) : name(name) {}
 			virtual ~expression() = default;
+
 			virtual Value *codegen() = 0;
-			virtual std::string getType() = 0;
-			void setName(char* newName) { name = newName; }
-			const char *getName() { return name; }
+			virtual const char *getType() = 0;
+			virtual const char *getName() { return name.c_str(); }
+			virtual void setName(llvm::StringRef newName) { name = newName; }
 	};
 
 	class binary_expression : public expression {
-		char Op;
+    static constexpr const char *ExpType = "binary_expression";
+    std::string Op;
 		expression* LHS;
 		expression* RHS;
-		char* name;
+
 		public:
-			binary_expression(char Op, expression* LHS, expression* RHS) : Op(Op), LHS(LHS), RHS(RHS), name(0) {}
-			binary_expression(char Op, expression* LHS, expression* RHS, char* name) : Op(Op), LHS(LHS), RHS(RHS), name(name) {}
+			binary_expression(llvm::StringRef name, llvm::StringRef Op, expression* LHS, expression* RHS) : expression(name), Op(Op), LHS(LHS), RHS(RHS) {}
 			Value *codegen() override;
-			virtual std::string getType() { return "binary_expression"; };
-			void setName(char* newName) { name = newName; }
-			const char *getName() { return name; }
+			virtual const char *getType() { return ExpType; };
 	};
 
 	class variable : public expression {
-		char* name;
+    static constexpr const char *ExpType = "variable";
 		public:
-			variable(char* name) : name(name) {}
+			variable(llvm::StringRef name) : expression(name) {}
 			Value *codegen() override;
-			virtual std::string getType() { return "variable"; };
-			void setName(char* newName) { name = newName; }
-			const char *getName() { return name; }
+			virtual const char *getType() { return ExpType; };
 	};
 
 	//TODO: figure out how to store unnamed variable into IR (e.g. "%3 = i32 52")
 	//TODO: for integer, float, string, bool const, add "char* name" field
 	class integer_const : public expression {
+    static constexpr const char *ExpType = "integer_const";
 		int val;
-		const char* name;
 		public:
-			integer_const(int val) : val(val) {
-				std::string newName = "";
-				name = newName.c_str();
-			}
+			integer_const(llvm::StringRef name, int val) : expression(name), val(val) {}
 			Value *codegen() override;
-			virtual std::string getType() { return "integer_const"; };
-			void setName(const char* newName) { name = newName; }
-			const char *getName() { return name; }
+			virtual const char *getType() { return ExpType; };
 	};
 
 	class float_const : public expression {
+    static constexpr const char *ExpType = "float_const";
 		float val;
-		const char* name;
 		public:
-			float_const(float val) : val(val) {
-				std::string newName = "";
-				name = newName.c_str();
-			}
+			float_const(llvm::StringRef name, int val) : expression(name), val(val) {}
 			Value *codegen() override;
-			virtual std::string getType() { return "float_const"; };
-			void setName(const char* newName) { name = newName; }
-			const char *getName() { return name; }
+			virtual const char *getType() { return ExpType; };
 	};
 
 	class string_const : public expression {
+    static constexpr const char *ExpType = "string_const";
 		std::string val;
-		const char* name;
 		public:
-			string_const(std::string val) : val(val) {
-				std::string newName = "";
-				name = newName.c_str();
-			}
+			string_const(llvm::StringRef name, llvm::StringRef val) : expression(name), val(val) {}
 			Value *codegen() override;
-			virtual std::string getType() { return "string_const"; };
-			void setName(const char* newName) { name = newName; }
-			const char *getName() { return name; }
+			virtual const char *getType() { return ExpType; };
 	};
 
 	class bool_const : public expression {
+    static constexpr const char *ExpType = "bool_const";
 		bool val;
-		const char* name;
 		public:
-			bool_const(bool val) : val(val) {
-				std::string newName = "";
-				name = newName.c_str();
-			}
+			bool_const(llvm::StringRef name, bool val) : expression(name), val(val) {}
 			Value *codegen() override;
-			virtual std::string getType() { return "bool_const"; };
-			void setName(const char* newName) { name = newName; }
-			const char *getName() { return name; }
+			virtual const char *getType() { return ExpType; };
 	};
 
 	class function_call : public expression {
+    static constexpr const char *ExpType = "function_call";
 		std::string function_name;
 		std::vector<expression*> args;
-		char* name;
 		public:
-			function_call(std::string function_name, std::vector<expression*> args) : function_name(function_name), args(args), name(0) {}
-			function_call(std::string function_name, std::vector<expression*> args, char* call_name) : function_name(function_name), args(args), name(call_name) {}
+			function_call(llvm::StringRef name, llvm::StringRef function_name) : expression(name), function_name(function_name) {}
 			Value *codegen() override;
-			virtual std::string getType() { return "function_call"; };
-			char *getName() { return name; }
+			virtual const char *getType() { return ExpType; };
+      void addExpression(expression *exp) { args.push_back(exp); }
 	};
 
 	class return_statement : public expression {
+    static constexpr const char *ExpType = "return_statement";
 		expression* return_val;
 		public:
-			return_statement(expression* return_val) : return_val(std::move(return_val)) {}
+			return_statement(llvm::StringRef name, expression* return_val) : expression(name), return_val(return_val) {}
 			Value *codegen() override;
-			virtual std::string getType() { return "return_statement"; };
+			virtual const char *getType() { return ExpType; };
 	};
 
-	class function_exp {
-		const char* function_name;
+	class function_exp : public expression {
+    static constexpr const char *ExpType = "function_exp";
+    std::string function_name;
 		std::vector<int> arg_types;
 		std::vector<std::string> arg_names;
 		int ret_type;
 		std::vector<expression*> body;
 		public:
-			function_exp(const char* function_name, std::vector<int> arg_types, std::vector<std::string> arg_names, int ret_type, std::vector<expression*> body)
-				 : function_name(function_name), arg_types(std::move(arg_types)), arg_names(std::move(arg_names)), ret_type(ret_type), body(std::move(body)) {}
-			Function *codegen();
-			const char *getName() { return function_name; }
+                 function_exp(llvm::StringRef name, llvm::StringRef function_name,
+                              std::vector<int> arg_types,
+                              std::vector<std::string> arg_names, int ret_type,
+                              std::vector<expression *> body)
+                     : expression(name),
+                       function_name(function_name),
+                       arg_types(arg_types),
+                       arg_names(arg_names),
+                       ret_type(ret_type),
+                       body(body) {}
+                 Function *codegen();
+                 virtual const char *getType() { return ExpType; };
 	};
-}
