@@ -31,9 +31,9 @@ namespace {
 	class expression {
 		char* name;
 		public:
-			virtual ~expression() = default;
-			virtual Value *codegen() = 0;
-			virtual std::string getType() = 0;
+			~expression() = default;
+			Value *codegen() { return 0; }
+			std::string getType() { return "expression"; }
 			void setName(char* newName) { name = newName; }
 			const char *getName() { return name; }
 	};
@@ -46,8 +46,10 @@ namespace {
 		public:
 			binary_expression(char Op, expression* LHS, expression* RHS) : Op(Op), LHS(LHS), RHS(RHS), name(0) {}
 			binary_expression(char Op, expression* LHS, expression* RHS, char* name) : Op(Op), LHS(LHS), RHS(RHS), name(name) {}
-			Value *codegen() override;
-			virtual std::string getType() { return "binary_expression"; };
+			~binary_expression() { delete LHS; delete RHS; }
+			
+			Value *codegen();
+			std::string getType() { return "binary_expression"; }
 			void setName(char* newName) { name = newName; }
 			const char *getName() { return name; }
 	};
@@ -56,8 +58,8 @@ namespace {
 		char* name;
 		public:
 			variable(char* name) : name(name) {}
-			Value *codegen() override;
-			virtual std::string getType() { return "variable"; };
+			Value *codegen();
+			std::string getType() { return "variable"; }
 			void setName(char* newName) { name = newName; }
 			const char *getName() { return name; }
 	};
@@ -72,8 +74,8 @@ namespace {
 				std::string newName = "";
 				name = newName.c_str();
 			}
-			Value *codegen() override;
-			virtual std::string getType() { return "integer_const"; };
+			Value *codegen();
+			std::string getType() { return "integer_const"; }
 			void setName(const char* newName) { name = newName; }
 			const char *getName() { return name; }
 	};
@@ -86,8 +88,8 @@ namespace {
 				std::string newName = "";
 				name = newName.c_str();
 			}
-			Value *codegen() override;
-			virtual std::string getType() { return "float_const"; };
+			Value *codegen();
+			std::string getType() { return "float_const"; }
 			void setName(const char* newName) { name = newName; }
 			const char *getName() { return name; }
 	};
@@ -100,8 +102,9 @@ namespace {
 				std::string newName = "";
 				name = newName.c_str();
 			}
-			Value *codegen() override;
-			virtual std::string getType() { return "string_const"; };
+			
+			Value *codegen();
+			std::string getType() { return "string_const"; }
 			void setName(const char* newName) { name = newName; }
 			const char *getName() { return name; }
 	};
@@ -114,21 +117,22 @@ namespace {
 				std::string newName = "";
 				name = newName.c_str();
 			}
-			Value *codegen() override;
-			virtual std::string getType() { return "bool_const"; };
+			Value *codegen();
+			std::string getType() { return "bool_const"; }
 			void setName(const char* newName) { name = newName; }
 			const char *getName() { return name; }
 	};
 
 	class function_call : public expression {
 		std::string function_name;
-		std::vector<expression*> args;
+		std::vector<expression> args;
 		char* name;
 		public:
-			function_call(std::string function_name, std::vector<expression*> args) : function_name(function_name), args(args), name(0) {}
-			function_call(std::string function_name, std::vector<expression*> args, char* call_name) : function_name(function_name), args(args), name(call_name) {}
-			Value *codegen() override;
-			virtual std::string getType() { return "function_call"; };
+			function_call(std::string function_name, std::vector<expression> args) : function_name(function_name), args(args), name(0) {}
+			function_call(std::string function_name, std::vector<expression> args, char* call_name) : function_name(function_name), args(args), name(call_name) {}
+			
+			Value *codegen();
+			std::string getType() { return "function_call"; }
 			char *getName() { return name; }
 	};
 
@@ -136,8 +140,10 @@ namespace {
 		expression* return_val;
 		public:
 			return_statement(expression* return_val) : return_val(std::move(return_val)) {}
-			Value *codegen() override;
-			virtual std::string getType() { return "return_statement"; };
+			~return_statement() { delete return_val; }
+
+			Value *codegen();
+			std::string getType() { return "return_statement"; }
 	};
 
 	class function_exp {
@@ -145,10 +151,11 @@ namespace {
 		std::vector<int> arg_types;
 		std::vector<std::string> arg_names;
 		int ret_type;
-		std::vector<expression*> body;
+		std::vector<expression> body;
 		public:
-			function_exp(const char* function_name, std::vector<int> arg_types, std::vector<std::string> arg_names, int ret_type, std::vector<expression*> body)
+			function_exp(const char* function_name, std::vector<int> arg_types, std::vector<std::string> arg_names, int ret_type, std::vector<expression> body)
 				 : function_name(function_name), arg_types(std::move(arg_types)), arg_names(std::move(arg_names)), ret_type(ret_type), body(std::move(body)) {}
+			
 			Function *codegen();
 			const char *getName() { return function_name; }
 	};

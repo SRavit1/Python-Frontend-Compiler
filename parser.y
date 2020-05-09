@@ -9,9 +9,9 @@ int yylex();
 #include "main.h"
 #include "nodescpp.h"
 
-std::vector<function_exp*> program = {};
-std::vector<expression*> main_block = {};
-std::vector<expression*>* current_block = {};
+std::vector<function_exp>* program = new std::vector<function_exp>;
+std::vector<expression>* main_block = new std::vector<expression>;
+std::vector<expression>* current_block = new std::vector<expression>;
 %}
 
 %union {
@@ -21,9 +21,12 @@ std::vector<expression*>* current_block = {};
 	char char_val;
 
 	char* string_val;
-	class expression* exp; //Problem: Object slicing occurs when assigning derived class to base class
+	class expression* exp;
+	//Pointer must be used in union because sizeof(exp) is unknown
+	//TODO: Look into smart pointers as better alternative
+	//Problem: Object slicing occurs when assigning derived class to base class
 	class function_exp* fexp;
-	std::vector<expression*>* expl;
+	std::vector<expression>* expl;
 	std::vector<std::string>* strl;
 }
 
@@ -34,6 +37,11 @@ std::vector<expression*>* current_block = {};
 
 %token EQUAL
 %token NEWL
+
+%token OPEN_PAREN
+%token CLOSE_PAREN
+%token COMMA
+%token COLON
 
 %token <string_val> IDENTIFIER
 %token <int_val> INT_TOKEN
@@ -63,14 +71,12 @@ std::vector<expression*>* current_block = {};
 statement_list: top_statement NEWL | statement_list top_statement NEWL;
 
 top_statement:
-	statement { main_block.push_back($1); }
-	| function_declaration { program.push_back($1); }
+	statement { main_block->push_back(*$1); }
+	| function_declaration { program->push_back(*$1); }
 	;
 
 statement:
-	assignment {
-		$$ = $1;
-	}
+	assignment { $$ = $1; }
 	| function_call { $$ = $1; }
 	| return { $$ = $1; }
 	/*TODO: should not be called at top level*/
@@ -78,30 +84,29 @@ statement:
 	;
 
 assignment:
-	IDENTIFIER EQUAL expression
-		{
-			$$ = $3;
-		}
+	IDENTIFIER EQUAL expression { $$ = $3; }
 	;
 
 function_call:
-	IDENTIFIER "(" args_list ")"
+	IDENTIFIER OPEN_PAREN args_list CLOSE_PAREN
 		{
-			function_call curr_fc($1, *$3);
-			$$ = &curr_fc;
+			std::string identifier_str($1);
+			function_call* curr_fc = new function_call(identifier_str, *$3);
+
+			$$ = curr_fc;
 		}
 	;
 args_list:
 	expression
 		{
-			std::vector<expression*> expl;
-			expl.push_back($1);
+			std::vector<expression> expl;
+			expl.push_back(*$1);
 			$$ = &expl;
 		}
-	| args_list "," expression
+	| args_list COMMA expression
 		{
 			$$=$1;
-			$$->push_back($3);
+			$$->push_back(*$3);
 		}
 	;
 return:
@@ -113,14 +118,14 @@ return:
 	;
 
 function_declaration:
-	DEF IDENTIFIER "(" param_list ")" ":" "\n" "{" body "}"
+	DEF IDENTIFIER OPEN_PAREN param_list CLOSE_PAREN COLON NEWL "{" body "}"
 		{
 			//TODO: Don't know ret type at this point
 			char* function_name = $2;
 			std::vector<int> arg_types($4->size());
 			std::vector<std::string> arg_names = *$4;
 			int ret_type = 0;
-			std::vector<expression*> body = *$9;
+			std::vector<expression> body = *$9;
 			
 			function_exp curr_fe(function_name, arg_types, arg_names, ret_type, body);
 			$$ = &curr_fe;
@@ -128,70 +133,71 @@ function_declaration:
 	;
 
 param_list:
-	param_list "," IDENTIFIER
+	param_list COMMA IDENTIFIER
 		{
 			$$ = $1;
 			$$->push_back($3);
 		}
 	| IDENTIFIER
 		{
-			std::vector<std::string> ident;
-			ident.push_back($1);
-			$$ = &ident;
+			std::vector<std::string>* ident = new std::vector<std::string>;
+			ident->push_back($1);
+			$$ = ident;
 		}
 
 	;	
 
 body:
-	statement "\n" body
+	statement NEWL body
 		{
-			current_block->push_back($1);
+			current_block->push_back(*$1);
 		}
-	| statement "\n"
+	| statement NEWL
 		{
-			current_block->push_back($1);
+			current_block->push_back(*$1);
 		}
-
 	;
 
 expression: 
-	"(" expression ")" { $$ = $2; }
+	OPEN_PAREN expression CLOSE_PAREN { $$ = $2; }
 	| binary_expression { $$ = $1; }
 	| variable { $$ = $1; }
 	| function_call { $$ = $1; }
 	| INT_TOKEN {
-		integer_const int_tok($1);
-		$$ = &int_tok;
+		integer_const* int_tok = new integer_const($1);
+		$$ = int_tok;
+
 		std::string newName = "happy";
 		char newNameC[5] = {'h', 'a', 'p', 'p', 'y'};
 		$$->setName(newNameC);
 	}
 	| FLOAT_TOKEN {
-		float_const float_tok($1);
-		$$ = &float_tok;
+		float_const* float_tok = new float_const($1);
+		$$ = float_tok;
 	}
 	| STRING_TOKEN {
-		string_const string_tok($1);
-		$$ = &string_tok;
+		string_const* string_tok = new string_const($1);
+		$$ = string_tok;
 	}
 	| BOOL_TOKEN {
-		bool_const bool_tok($1);
-		$$ = &bool_tok;
+		bool_const* bool_tok = new bool_const($1);
+		$$ = bool_tok;
 	}
 	;
 
 binary_expression:
 	expression OP expression
 		{
-			binary_expression be($2, $1, $3);
-			$$ = &be;
+			binary_expression* be = new binary_expression($2, $1, $3);
+			$$ = be;
 		}
 	;
 
 variable:
 	IDENTIFIER
 		{
-			$$ = new variable($1);
+			variable* var = new variable($1);
+			$$ = var;
 		}
 	;
 OP:
@@ -202,21 +208,24 @@ OP:
 	;
 %%
 
-
 int main (void) {
 	std::string main_name = "main";
-	function_exp main(main_name.c_str(), {}, {}, 0, main_block);
+	function_exp main(main_name.c_str(), {}, {}, 0, *main_block);
 
-	current_block = &main_block;
-	program.push_back(&main);
+	current_block = main_block;
+	program->push_back(main);
 
 	int result = yyparse ();
 	
-	for (expression* statement : main_block) {
-		std::cout << "Statement " << statement->getType() << "\n";
+	for (expression statement : *main_block) {
+		std::cout << "Statement " << statement.getType() << "\n";
 	}
 
-	compile(program);
+	compile(*program);
+
+	delete program;
+	delete main_block;
+	delete current_block;
 
 	return result;
 }

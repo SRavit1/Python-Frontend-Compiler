@@ -31,6 +31,13 @@ False							{yylval.bool_val = 0; return BOOL_TOKEN;}
 def								return DEF;
 return							return RET;
 
+"("								return OPEN_PAREN;
+")"								return CLOSE_PAREN;
+
+":"								return COLON;
+
+","								return COMMA;
+
 [a-zA-Z_][a-zA-Z_0-9]*			{
 								yylval.string_val = strdup(yytext);
 								return IDENTIFIER;}

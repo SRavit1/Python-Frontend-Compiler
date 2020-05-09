@@ -49,11 +49,15 @@ extern int yydebug;
     RET = 259,
     EQUAL = 260,
     NEWL = 261,
-    IDENTIFIER = 262,
-    INT_TOKEN = 263,
-    FLOAT_TOKEN = 264,
-    STRING_TOKEN = 265,
-    BOOL_TOKEN = 266
+    OPEN_PAREN = 262,
+    CLOSE_PAREN = 263,
+    COMMA = 264,
+    COLON = 265,
+    IDENTIFIER = 266,
+    INT_TOKEN = 267,
+    FLOAT_TOKEN = 268,
+    STRING_TOKEN = 269,
+    BOOL_TOKEN = 270
   };
 #endif
 
@@ -70,12 +74,15 @@ union YYSTYPE
 	char char_val;
 
 	char* string_val;
-	class expression* exp; //Problem: Object slicing occurs when assigning derived class to base class
+	class expression* exp;
+	//Pointer must be used in union because sizeof(exp) is unknown
+	//TODO: Look into smart pointers as better alternative
+	//Problem: Object slicing occurs when assigning derived class to base class
 	class function_exp* fexp;
-	std::vector<expression*>* expl;
+	std::vector<expression>* expl;
 	std::vector<std::string>* strl;
 
-#line 79 "parser.tab.h" /* yacc.c:1909  */
+#line 86 "parser.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

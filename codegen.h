@@ -90,7 +90,7 @@ Value *function_call::codegen() {
 
 	std::vector<Value *> args_value;
 	for (unsigned i = 0, e = args.size(); i != e; ++i) {
-	args_value.push_back(args[i]->codegen());
+	args_value.push_back(args[i].codegen());
 	if (!args_value.back())
 		return nullptr;
 	}
@@ -165,8 +165,8 @@ Function *function_exp::codegen() {
 	for (auto &arg : TheFunction->args())
 		NamedValues[std::string(arg.getName())] = &arg;
 
-	for (expression* statement : body) {
-		statement->codegen();
+	for (expression statement : body) {
+		statement.codegen();
 	}
 
 	verifyFunction(std::move(*TheFunction));
@@ -177,9 +177,9 @@ Function *function_exp::codegen() {
 	return nullptr;
 }
 
-void codegen(const std::vector<function_exp*> statements) {
+void codegen(const std::vector<function_exp> statements) {
 	for (auto statement : statements) {
-		statement->codegen();
+		statement.codegen();
 	}
 
 	TheModule->print(errs(), nullptr);
