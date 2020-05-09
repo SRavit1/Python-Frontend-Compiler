@@ -1,0 +1,575 @@
+From e650a5d9249eca7816571092e77bb95ee2eedd72 Mon Sep 17 00:00:00 2001
+From: Austin Kerbow <Austin.Kerbow@amd.com>
+Date: Sat, 9 May 2020 00:44:45 -0700
+Subject: [PATCH] Parse and CG binop
+
+---
+ Makefile   |   6 +--
+ codegen.h  |  45 +++++++++------------
+ lex.l      |   4 +-
+ main.h     |  13 ++++---
+ nodescpp.h | 112 +++++++++++++++++++++++------------------------------
+ parser.y   |  83 ++++++++++++++++++---------------------
+ test.in    |   2 +-
+ 7 files changed, 119 insertions(+), 146 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 7656574..f7eb4c5 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,14 +1,14 @@
+ all : main.h codegen.h checker.h optimizer.h nodescpp.h lex.yy.c parser.tab.c parser.tab.h
+-	g++ -g -O0 parser.tab.c lex.yy.c -ll -ly `llvm-config --cxxflags --ldflags --system-libs --libs core`
++	bear g++ -g -O0 parser.tab.c lex.yy.c -ll -ly `llvm-config --cxxflags --ldflags --system-libs --libs core`
+ 
+ lex.yy.c : lex.l
+ 	lex lex.l
+ 
+ parser.tab.c : parser.y
+-	bison -d parser.y
++	bison --debug -d parser.y
+ 
+ parser.tab.h : parser.y
+-	bison -d parser.y
++	bison --debug -d parser.y
+ 
+ clean : 
+ 	rm lex.yy.* parser.tab.* a.out
+diff --git a/codegen.h b/codegen.h
+index f43c344..37842c1 100644
+--- a/codegen.h
++++ b/codegen.h
+@@ -31,34 +31,25 @@ Value *binary_expression::codegen() {
+ 	Value* L = LHS->codegen();
+ 	Value* R = RHS->codegen();
+ 	
+-	Value* output = NULL;
+-	switch(Op) {
+-		case '+':
+-			output = Builder.CreateAdd(L, R, name);
+-			break;
+-        case '-':
+-			output = Builder.CreateSub(L, R, name);
+-			break;
+-        case '*':
+-			output = Builder.CreateMul(L, R, name);
+-			break;
+-        case '/':
+-            output = Builder.CreateSDiv(L, R, name);
+-			break;
+-			//TODO: check what is correct div
+-		default:
+-			return output;
+-	}
+-
+-	if (name != 0) {
+-		NamedValues[name] = output;
++	Value* output = nullptr;
++  if (Op == "+")
++			output = Builder.CreateAdd(L, R, getName());
++  else if (Op == "-")
++			output = Builder.CreateSub(L, R, getName());
++  else if (Op == "*")
++			output = Builder.CreateMul(L, R, getName());
++  else if (Op == "/")
++			output = Builder.CreateSDiv(L, R, getName());
++
++	if (getName() != "") {
++		NamedValues[getName()] = output;
+ 	}
+ 
+ 	return output;
+ }
+ 
+ Value *variable::codegen() {
+-	return NamedValues[name];
++	return NamedValues[getName()];
+ }
+ 
+ Value *integer_const::codegen() {
+@@ -78,7 +69,7 @@ Value *bool_const::codegen() {
+ }
+ 
+ Value *function_call::codegen() {
+-	// Look up the name in the global module table.
++	// Look up the getName() in the global module table.
+ 	Function *callee = TheModule->getFunction(function_name);
+ 
+ 	if (!callee)
+@@ -95,7 +86,7 @@ Value *function_call::codegen() {
+ 		return nullptr;
+ 	}
+ 
+-	return Builder.CreateCall(callee, args_value, name);
++	return Builder.CreateCall(callee, args_value, getName());
+ }
+ 
+ Value *return_statement::codegen() {
+@@ -103,7 +94,7 @@ Value *return_statement::codegen() {
+ }
+ 
+ Function *function_exp::codegen() {
+-	std::vector <Type *> args_obj = {};
++	std::vector <Type *> args_obj;
+ 	
+ 	for (int arg_type : arg_types) {
+ 		Type *arg_type_obj = Type::getVoidTy(TheContext);
+@@ -151,7 +142,7 @@ Function *function_exp::codegen() {
+ 	FunctionType *FT = FunctionType::get(ret_type_obj, args_obj, false);
+ 	Function *TheFunction = Function::Create(FT, Function::ExternalLinkage, function_name, TheModule.get());
+ 
+-	// Set names for all arguments.
++	// Set getName()s for all arguments.
+ 	unsigned Idx = 0;
+ 	for (auto &arg : TheFunction->args())
+ 		arg.setName(arg_names[Idx++]);
+@@ -183,4 +174,4 @@ void codegen(const std::vector<function_exp*> statements) {
+ 	}
+ 
+ 	TheModule->print(errs(), nullptr);
+-}
+\ No newline at end of file
++}
+diff --git a/lex.l b/lex.l
+index b68c5e9..1722e59 100644
+--- a/lex.l
++++ b/lex.l
+@@ -34,6 +34,8 @@ return							return RET;
+ [a-zA-Z_][a-zA-Z_0-9]*			{
+ 								yylval.string_val = strdup(yytext);
+ 								return IDENTIFIER;}
++
++[-+*/]    {yylval.string_val = strdup(yytext); return OP;}
+ %%
+ 
+-int yywrap (void) {return 1;}
+\ No newline at end of file
++int yywrap (void) {return 1;}
+diff --git a/main.h b/main.h
+index 4b4155e..10ff7c1 100644
+--- a/main.h
++++ b/main.h
+@@ -5,6 +5,7 @@
+ #include <stdio.h>
+ 
+ std::vector<function_exp*> getStatements() {
++  /*
+     TheModule = make_unique<Module>("Program", TheContext);
+ 
+ 	auto *ret_exp = new return_statement(new integer_const(5));
+@@ -19,13 +20,15 @@ std::vector<function_exp*> getStatements() {
+ 	statements.push_back(main);
+ 
+     return statements;
++    */
++  return std::vector<function_exp*>();
+ }
+ 
+ int compile (std::vector<function_exp*> program) {
+-	if(checkProgram(program))
+-        perror("Program sanity check");
+-    std::vector<function_exp*> optimized = optimizeProgram(program);
++	//if(checkProgram(program))
++   //     perror("Program sanity check");
++   // std::vector<function_exp*> optimized = optimizeProgram(program);
+ 	codegen(program);
+ 	
+-	return 1;
+-}
+\ No newline at end of file
++	return 0;
++}
+diff --git a/nodescpp.h b/nodescpp.h
+index ecdc8ef..bdec8e1 100644
+--- a/nodescpp.h
++++ b/nodescpp.h
+@@ -9,6 +9,7 @@
+ #include "llvm/IR/Module.h"
+ #include "llvm/IR/Type.h"
+ #include "llvm/IR/Verifier.h"
++#include "llvm/ADT/StringRef.h"
+ 
+ #include <algorithm>
+ #include <cctype>
+@@ -27,129 +28,114 @@ using namespace llvm;
+ //	a particular derived class is stored in expression?
+ //what is a namespace?
+ 
+-namespace {	
+ 	class expression {
+-		char* name;
++      std::string name;
+ 		public:
++      explicit expression(llvm::StringRef name) : name(name) {}
+ 			virtual ~expression() = default;
++
+ 			virtual Value *codegen() = 0;
+-			virtual std::string getType() = 0;
+-			void setName(char* newName) { name = newName; }
+-			const char *getName() { return name; }
++			virtual const char *getType() = 0;
++			virtual const char *getName() { return name.c_str(); }
++			virtual void setName(llvm::StringRef newName) { name = newName; }
+ 	};
+ 
+ 	class binary_expression : public expression {
+-		char Op;
++    static constexpr const char *ExpType = "binary_expression";
++    std::string Op;
+ 		expression* LHS;
+ 		expression* RHS;
+-		char* name;
++
+ 		public:
+-			binary_expression(char Op, expression* LHS, expression* RHS) : Op(Op), LHS(LHS), RHS(RHS), name(0) {}
+-			binary_expression(char Op, expression* LHS, expression* RHS, char* name) : Op(Op), LHS(LHS), RHS(RHS), name(name) {}
++			binary_expression(llvm::StringRef name, llvm::StringRef Op, expression* LHS, expression* RHS) : expression(name), Op(Op), LHS(LHS), RHS(RHS) {}
+ 			Value *codegen() override;
+-			virtual std::string getType() { return "binary_expression"; };
+-			void setName(char* newName) { name = newName; }
+-			const char *getName() { return name; }
++			virtual const char *getType() { return ExpType; };
+ 	};
+ 
+ 	class variable : public expression {
+-		char* name;
++    static constexpr const char *ExpType = "variable";
+ 		public:
+-			variable(char* name) : name(name) {}
++			variable(llvm::StringRef name) : expression(name) {}
+ 			Value *codegen() override;
+-			virtual std::string getType() { return "variable"; };
+-			void setName(char* newName) { name = newName; }
+-			const char *getName() { return name; }
++			virtual const char *getType() { return ExpType; };
+ 	};
+ 
+ 	//TODO: figure out how to store unnamed variable into IR (e.g. "%3 = i32 52")
+ 	//TODO: for integer, float, string, bool const, add "char* name" field
+ 	class integer_const : public expression {
++    static constexpr const char *ExpType = "integer_const";
+ 		int val;
+-		const char* name;
+ 		public:
+-			integer_const(int val) : val(val) {
+-				std::string newName = "";
+-				name = newName.c_str();
+-			}
++			integer_const(llvm::StringRef name, int val) : expression(name), val(val) {}
+ 			Value *codegen() override;
+-			virtual std::string getType() { return "integer_const"; };
+-			void setName(const char* newName) { name = newName; }
+-			const char *getName() { return name; }
++			virtual const char *getType() { return ExpType; };
+ 	};
+ 
+ 	class float_const : public expression {
++    static constexpr const char *ExpType = "float_const";
+ 		float val;
+-		const char* name;
+ 		public:
+-			float_const(float val) : val(val) {
+-				std::string newName = "";
+-				name = newName.c_str();
+-			}
++			float_const(llvm::StringRef name, int val) : expression(name), val(val) {}
+ 			Value *codegen() override;
+-			virtual std::string getType() { return "float_const"; };
+-			void setName(const char* newName) { name = newName; }
+-			const char *getName() { return name; }
++			virtual const char *getType() { return ExpType; };
+ 	};
+ 
+ 	class string_const : public expression {
++    static constexpr const char *ExpType = "string_const";
+ 		std::string val;
+-		const char* name;
+ 		public:
+-			string_const(std::string val) : val(val) {
+-				std::string newName = "";
+-				name = newName.c_str();
+-			}
++			string_const(llvm::StringRef name, llvm::StringRef val) : expression(name), val(val) {}
+ 			Value *codegen() override;
+-			virtual std::string getType() { return "string_const"; };
+-			void setName(const char* newName) { name = newName; }
+-			const char *getName() { return name; }
++			virtual const char *getType() { return ExpType; };
+ 	};
+ 
+ 	class bool_const : public expression {
++    static constexpr const char *ExpType = "bool_const";
+ 		bool val;
+-		const char* name;
+ 		public:
+-			bool_const(bool val) : val(val) {
+-				std::string newName = "";
+-				name = newName.c_str();
+-			}
++			bool_const(llvm::StringRef name, bool val) : expression(name), val(val) {}
+ 			Value *codegen() override;
+-			virtual std::string getType() { return "bool_const"; };
+-			void setName(const char* newName) { name = newName; }
+-			const char *getName() { return name; }
++			virtual const char *getType() { return ExpType; };
+ 	};
+ 
+ 	class function_call : public expression {
++    static constexpr const char *ExpType = "function_call";
+ 		std::string function_name;
+ 		std::vector<expression*> args;
+-		char* name;
+ 		public:
+-			function_call(std::string function_name, std::vector<expression*> args) : function_name(function_name), args(args), name(0) {}
+-			function_call(std::string function_name, std::vector<expression*> args, char* call_name) : function_name(function_name), args(args), name(call_name) {}
++			function_call(llvm::StringRef name, llvm::StringRef function_name) : expression(name), function_name(function_name) {}
+ 			Value *codegen() override;
+-			virtual std::string getType() { return "function_call"; };
+-			char *getName() { return name; }
++			virtual const char *getType() { return ExpType; };
++      void addExpression(expression *exp) { args.push_back(exp); }
+ 	};
+ 
+ 	class return_statement : public expression {
++    static constexpr const char *ExpType = "return_statement";
+ 		expression* return_val;
+ 		public:
+-			return_statement(expression* return_val) : return_val(std::move(return_val)) {}
++			return_statement(llvm::StringRef name, expression* return_val) : expression(name), return_val(return_val) {}
+ 			Value *codegen() override;
+-			virtual std::string getType() { return "return_statement"; };
++			virtual const char *getType() { return ExpType; };
+ 	};
+ 
+-	class function_exp {
+-		const char* function_name;
++	class function_exp : public expression {
++    static constexpr const char *ExpType = "function_exp";
++    std::string function_name;
+ 		std::vector<int> arg_types;
+ 		std::vector<std::string> arg_names;
+ 		int ret_type;
+ 		std::vector<expression*> body;
+ 		public:
+-			function_exp(const char* function_name, std::vector<int> arg_types, std::vector<std::string> arg_names, int ret_type, std::vector<expression*> body)
+-				 : function_name(function_name), arg_types(std::move(arg_types)), arg_names(std::move(arg_names)), ret_type(ret_type), body(std::move(body)) {}
+-			Function *codegen();
+-			const char *getName() { return function_name; }
++                 function_exp(llvm::StringRef name, llvm::StringRef function_name,
++                              std::vector<int> arg_types,
++                              std::vector<std::string> arg_names, int ret_type,
++                              std::vector<expression *> body)
++                     : expression(name),
++                       function_name(function_name),
++                       arg_types(arg_types),
++                       arg_names(arg_names),
++                       ret_type(ret_type),
++                       body(body) {}
++                 Function *codegen();
++                 virtual const char *getType() { return ExpType; };
+ 	};
+-}
+\ No newline at end of file
+diff --git a/parser.y b/parser.y
+index 677b47f..ec448cf 100644
+--- a/parser.y
++++ b/parser.y
+@@ -11,14 +11,13 @@ int yylex();
+ 
+ std::vector<function_exp*> program = {};
+ std::vector<expression*> main_block = {};
+-std::vector<expression*>* current_block = {};
++std::vector<expression*> current_block = {};
+ %}
+ 
+ %union {
+ 	int int_val;
+ 	float float_val;
+ 	bool bool_val;
+-	char char_val;
+ 
+ 	char* string_val;
+ 	class expression* exp; //Problem: Object slicing occurs when assigning derived class to base class
+@@ -33,15 +32,14 @@ std::vector<expression*>* current_block = {};
+ %token RET
+ 
+ %token EQUAL
+-%token NEWL
++%token <string_val> NEWL
+ 
+ %token <string_val> IDENTIFIER
+ %token <int_val> INT_TOKEN
+ %token <float_val> FLOAT_TOKEN
+ %token <string_val> STRING_TOKEN
+ %token <int_val> BOOL_TOKEN
+-
+-%type <char_val> OP
++%token <string_val> OP
+ 
+ %type <exp> statement
+ %type <fexp> function_declaration
+@@ -87,16 +85,18 @@ assignment:
+ function_call:
+ 	IDENTIFIER "(" args_list ")"
+ 		{
+-			function_call curr_fc($1, *$3);
+-			$$ = &curr_fc;
++      function_call *FC = new function_call("fun", $1);
++      for (auto Exp : *$3)
++        FC->addExpression(Exp);
++			$$ = FC;
+ 		}
+ 	;
+ args_list:
+ 	expression
+ 		{
+-			std::vector<expression*> expl;
+-			expl.push_back($1);
+-			$$ = &expl;
++			std::vector<expression*> *expl = new std::vector<expression*>();
++			expl->push_back($1);
++			$$ = expl;
+ 		}
+ 	| args_list "," expression
+ 		{
+@@ -107,8 +107,7 @@ args_list:
+ return:
+ 	RET expression
+ 		{
+-			return_statement curr_rs($2);
+-			$$ = &curr_rs;
++			$$ = new return_statement("ret", $2);
+ 		}
+ 	;
+ 
+@@ -122,8 +121,7 @@ function_declaration:
+ 			int ret_type = 0;
+ 			std::vector<expression*> body = *$9;
+ 			
+-			function_exp curr_fe(function_name, arg_types, arg_names, ret_type, body);
+-			$$ = &curr_fe;
++			$$ = new function_exp("func", function_name, arg_types, arg_names, ret_type, body);
+ 		}
+ 	;
+ 
+@@ -135,9 +133,9 @@ param_list:
+ 		}
+ 	| IDENTIFIER
+ 		{
+-			std::vector<std::string> ident;
+-			ident.push_back($1);
+-			$$ = &ident;
++			std::vector<std::string> *ident = new std::vector<std::string>();
++			ident->push_back($1);
++			$$ = ident;
+ 		}
+ 
+ 	;	
+@@ -145,11 +143,11 @@ param_list:
+ body:
+ 	statement "\n" body
+ 		{
+-			current_block->push_back($1);
++			current_block.push_back($1);
+ 		}
+ 	| statement "\n"
+ 		{
+-			current_block->push_back($1);
++			current_block.push_back($1);
+ 		}
+ 
+ 	;
+@@ -160,31 +158,23 @@ expression:
+ 	| variable { $$ = $1; }
+ 	| function_call { $$ = $1; }
+ 	| INT_TOKEN {
+-		integer_const int_tok($1);
+-		$$ = &int_tok;
+-		std::string newName = "happy";
+-		char newNameC[5] = {'h', 'a', 'p', 'p', 'y'};
+-		$$->setName(newNameC);
++		$$ = new integer_const("int", $1);
+ 	}
+ 	| FLOAT_TOKEN {
+-		float_const float_tok($1);
+-		$$ = &float_tok;
++		$$ = new float_const("float", $1);
+ 	}
+ 	| STRING_TOKEN {
+-		string_const string_tok($1);
+-		$$ = &string_tok;
++		$$ = new string_const("str", $1);
+ 	}
+ 	| BOOL_TOKEN {
+-		bool_const bool_tok($1);
+-		$$ = &bool_tok;
++		$$ = new bool_const("bool", $1);
+ 	}
+ 	;
+ 
+ binary_expression:
+ 	expression OP expression
+ 		{
+-			binary_expression be($2, $1, $3);
+-			$$ = &be;
++			$$ = new binary_expression("binexp", $2, $1, $3);
+ 		}
+ 	;
+ 
+@@ -194,31 +184,32 @@ variable:
+ 			$$ = new variable($1);
+ 		}
+ 	;
+-OP:
+-	'+'				{$$ = '+';}
+-	| '-'			{$$ = '-';}
+-	| '*'			{$$ = '*';}
+-	| '/'			{$$ = '/';}
+-	;
+ %%
+ 
+-
+ int main (void) {
++#ifdef YYDEBUG
++  yydebug = 1;
++#endif
+ 	std::string main_name = "main";
+-	function_exp main(main_name.c_str(), {}, {}, 0, main_block);
+-
+-	current_block = &main_block;
+-	program.push_back(&main);
+ 
+ 	int result = yyparse ();
+ 	
+ 	for (expression* statement : main_block) {
+ 		std::cout << "Statement " << statement->getType() << "\n";
+-	}
++  }
++  std::vector<int> argT;
++  std::vector<std::string> argN;
++  argT.push_back(0);
++  argN.emplace_back("var");
++
++  // You need to make sure you are moving main_block after parsing. main_block
++  // is invalidated after std::move.
++  function_exp main("fun", main_name.c_str(), argT, argN, 0, main_block);
++	program.push_back(&main);
+ 
+-	compile(program);
++  compile(program);
+ 
+-	return result;
++  return result;
+ }
+ 
+ void yyerror (char *s) {fprintf (stderr, "%s\n", s);}
+diff --git a/test.in b/test.in
+index b0e13a3..7391e55 100644
+--- a/test.in
++++ b/test.in
+@@ -1 +1 @@
+-a=2+4
++a=var+5
+-- 
+2.17.1
+
