@@ -117,8 +117,8 @@ namespace {
 		std::string function_name;
 
 		public:
-			function_call(llvm::StringRef name, std::string function_name) 
-				: expression(name), args(args), function_name(function_name) {}
+			function_call(llvm::StringRef name, llvm::StringRef function_name) 
+				: expression(name), function_name(function_name) {}
 			
 			Value *codegen() override;
 			virtual const char *getType() { return ExprType; }

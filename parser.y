@@ -6,12 +6,11 @@ int yylex();
 #include <stdlib.h>
 #include <iostream>
 
-#include "main.h"
+#include "compile.h"
 #include "nodescpp.h"
 
 std::vector<function_exp*> program = {};
 std::vector<expression*> main_block = {};
-std::vector<expression*> current_block = {};
 %}
 
 %union {
@@ -145,11 +144,14 @@ param_list:
 body:
 	statement NEWL body
 		{
-			current_block.push_back($1);
+			$3->push_back($1);
+			$$ = $3;
 		}
 	| statement NEWL
 		{
-			current_block.push_back($1);
+
+			$$ = new std::vector<expression*>;
+			$$->push_back($1);
 		}
 	;
 
@@ -193,17 +195,10 @@ int main (void) {
 		yydebug = 1;
 	#endif
 
-	std::string main_name = "main";
-	function_exp main(main_name.c_str(), {0}, {"var"}, 0, &main_block);
+	function_exp main("main", {0, 0}, {"var", "var2"}, 0, &main_block);
 	program.push_back(&main);
-
-	current_block = main_block;
 	
 	int result = yyparse ();
-	
-	for (expression* statement : main_block) {
-		std::cout << "Statement " << statement->getType() << "\n";
-	}
 
 	compile(program);
 
