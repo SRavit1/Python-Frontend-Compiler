@@ -24,11 +24,11 @@ std::vector<function_exp*> getStatements() {
     return statements;
 }
 
-int compile (std::vector<function_exp> program) {
-	if(checkProgram(program))
-        perror("Program sanity check");
-    std::vector<function_exp> optimized = optimizeProgram(program);
+int compile (std::vector<function_exp*> program) {
+	//if(checkProgram(program))
+    //    perror("Program sanity check");
+    //std::vector<function_exp> optimized = optimizeProgram(program);
 	codegen(program);
 	
-	return 1;
+	return 0;
 }

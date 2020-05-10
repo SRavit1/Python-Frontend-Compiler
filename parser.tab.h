@@ -57,7 +57,8 @@ extern int yydebug;
     INT_TOKEN = 267,
     FLOAT_TOKEN = 268,
     STRING_TOKEN = 269,
-    BOOL_TOKEN = 270
+    BOOL_TOKEN = 270,
+    OP = 271
   };
 #endif
 
@@ -71,7 +72,6 @@ union YYSTYPE
 	int int_val;
 	float float_val;
 	bool bool_val;
-	char char_val;
 
 	char* string_val;
 	class expression* exp;
@@ -79,7 +79,7 @@ union YYSTYPE
 	//TODO: Look into smart pointers as better alternative
 	//Problem: Object slicing occurs when assigning derived class to base class
 	class function_exp* fexp;
-	std::vector<expression>* expl;
+	std::vector<expression*>* expl;
 	std::vector<std::string>* strl;
 
 #line 86 "parser.tab.h" /* yacc.c:1909  */

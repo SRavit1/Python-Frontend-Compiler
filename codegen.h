@@ -31,34 +31,27 @@ Value *binary_expression::codegen() {
 	Value* L = LHS->codegen();
 	Value* R = RHS->codegen();
 	
-	Value* output = NULL;
-	switch(Op) {
-		case '+':
-			output = Builder.CreateAdd(L, R, name);
-			break;
-        case '-':
-			output = Builder.CreateSub(L, R, name);
-			break;
-        case '*':
-			output = Builder.CreateMul(L, R, name);
-			break;
-        case '/':
-            output = Builder.CreateSDiv(L, R, name);
-			break;
-			//TODO: check what is correct div
-		default:
-			return output;
-	}
+	Value* output = nullptr;
 
-	if (name != 0) {
-		NamedValues[name] = output;
+	if (Op == "+")	
+		output = Builder.CreateAdd(L, R, getName());
+	else if (Op == "-")
+		output = Builder.CreateSub(L, R, getName());
+	else if (Op == "*")
+		output = Builder.CreateMul(L, R, getName());
+	else if (Op == "/")
+		output = Builder.CreateSDiv(L, R, getName());
+		//TODO: check what is correct div
+
+	if (getName() != "") {
+		NamedValues[getName()] = output;
 	}
 
 	return output;
 }
 
 Value *variable::codegen() {
-	return NamedValues[name];
+	return NamedValues[getName()];
 }
 
 Value *integer_const::codegen() {
@@ -90,12 +83,12 @@ Value *function_call::codegen() {
 
 	std::vector<Value *> args_value;
 	for (unsigned i = 0, e = args.size(); i != e; ++i) {
-	args_value.push_back(args[i].codegen());
+	args_value.push_back(args[i]->codegen());
 	if (!args_value.back())
 		return nullptr;
 	}
 
-	return Builder.CreateCall(callee, args_value, name);
+	return Builder.CreateCall(callee, args_value, getName());
 }
 
 Value *return_statement::codegen() {
@@ -103,7 +96,7 @@ Value *return_statement::codegen() {
 }
 
 Function *function_exp::codegen() {
-	std::vector <Type *> args_obj = {};
+	std::vector <Type *> args_obj;
 	
 	for (int arg_type : arg_types) {
 		Type *arg_type_obj = Type::getVoidTy(TheContext);
@@ -129,6 +122,7 @@ Function *function_exp::codegen() {
 	}
 
 	Type *ret_type_obj = Type::getVoidTy(TheContext);
+	//List of LLVM Types: https://llvm.org/doxygen/classllvm_1_1Type.html
 	switch(ret_type) {
 		case -1: //void
 			break;
@@ -140,6 +134,8 @@ Function *function_exp::codegen() {
 			break;
 		case 2: //string
 			//cannot find what is appropriate type for string ??
+			//TypeID id = ArrayTyID;
+			//ret_type_obj = Type::getPrimitiveType(TheContext, id);
 			break;
 		case 3: //bool
 			ret_type_obj = Type::getInt1Ty(TheContext);
@@ -149,7 +145,7 @@ Function *function_exp::codegen() {
 	}
 	
 	FunctionType *FT = FunctionType::get(ret_type_obj, args_obj, false);
-	Function *TheFunction = Function::Create(FT, Function::ExternalLinkage, function_name, TheModule.get());
+	Function *TheFunction = Function::Create(FT, Function::ExternalLinkage, getName(), TheModule.get());
 
 	// Set names for all arguments.
 	unsigned Idx = 0;
@@ -165,8 +161,8 @@ Function *function_exp::codegen() {
 	for (auto &arg : TheFunction->args())
 		NamedValues[std::string(arg.getName())] = &arg;
 
-	for (expression statement : body) {
-		statement.codegen();
+	for (expression* stmnt : *body) {
+		stmnt->codegen();
 	}
 
 	verifyFunction(std::move(*TheFunction));
@@ -177,9 +173,9 @@ Function *function_exp::codegen() {
 	return nullptr;
 }
 
-void codegen(const std::vector<function_exp> statements) {
+void codegen(const std::vector<function_exp*> statements) {
 	for (auto statement : statements) {
-		statement.codegen();
+		statement->codegen();
 	}
 
 	TheModule->print(errs(), nullptr);

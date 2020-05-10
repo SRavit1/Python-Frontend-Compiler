@@ -25,6 +25,8 @@ False							{yylval.bool_val = 0; return BOOL_TOKEN;}
 
 \"[a-zA-Z_0-9]*\"				{yylval.string_val = strdup(yytext); return STRING_TOKEN;}
 
+[-+*/]							{yylval.string_val = strdup(yytext); return OP; }
+
 "="								return EQUAL;
 "\n"							return NEWL;
 
