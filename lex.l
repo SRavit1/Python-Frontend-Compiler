@@ -9,6 +9,7 @@ int yylex();
 
 /*https://docs.python.org/3/reference/lexical_analysis.html*/
 /*TODO: add keywords*/
+/*TODO: For token tab, only one of "    " or "\t" should be used*/
 
 %%
 \"\"\"[a-z]*\"\"\"				;
@@ -28,7 +29,9 @@ False							{yylval.bool_val = 0; return BOOL_TOKEN;}
 [-+*/]							{yylval.string_val = strdup(yytext); return OP; }
 
 "="								return EQUAL;
-"\n"							return NEWL;
+
+"\n"							;
+"    "|"\t"						return TAB;
 
 def								return DEF;
 return							return RET;

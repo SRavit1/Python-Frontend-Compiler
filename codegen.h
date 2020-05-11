@@ -27,6 +27,22 @@ Value *LogErrorV(const char *Str) {
   return nullptr;
 }
 
+Type* getTypeObj (int type) {
+	Type *type_obj = Type::getVoidTy(TheContext);
+
+	if (type == 0)
+		type_obj = Type::getInt32Ty(TheContext);
+	else if (type == 1)
+		type_obj = Type::getFloatTy(TheContext);
+	else if (type == 2)
+		//cannot find what is appropriate type for string ??
+		type_obj = Type::getVoidTy(TheContext);
+	else if (type == 3)
+		type_obj = Type::getInt1Ty(TheContext);
+
+	return type_obj;
+}
+
 Value *binary_expression::codegen() {
 	Value* L = LHS->codegen();
 	Value* R = RHS->codegen();
@@ -98,51 +114,15 @@ Value *return_statement::codegen() {
 Function *function_exp::codegen() {
 	std::vector <Type *> args_obj;
 	
+	if (arg_types.size() != arg_names.size())
+		std::cerr << "Internal error: arg_types vector size mismatch with arg_names vector";
+
 	for (int arg_type : arg_types) {
-		Type *arg_type_obj = Type::getVoidTy(TheContext);
-		switch(arg_type) {
-			case -1: //void
-				break;
-			case 0: //int
-				arg_type_obj = Type::getInt32Ty(TheContext);
-				break;
-			case 1: //float
-				arg_type_obj = Type::getFloatTy(TheContext);
-				break;
-			case 2: //string
-				//cannot find what is appropriate type for string ??
-				break;
-			case 3: //bool
-				arg_type_obj = Type::getInt1Ty(TheContext);
-				break;
-			default:
-				break;
-		}
+		Type *arg_type_obj = getTypeObj(arg_type);
 		args_obj.push_back(arg_type_obj);
 	}
 
-	Type *ret_type_obj = Type::getVoidTy(TheContext);
-	//List of LLVM Types: https://llvm.org/doxygen/classllvm_1_1Type.html
-	switch(ret_type) {
-		case -1: //void
-			break;
-		case 0: //int
-			ret_type_obj = Type::getInt32Ty(TheContext);
-			break;
-		case 1: //float
-			ret_type_obj = Type::getFloatTy(TheContext);
-			break;
-		case 2: //string
-			//cannot find what is appropriate type for string ??
-			//TypeID id = ArrayTyID;
-			//ret_type_obj = Type::getPrimitiveType(TheContext, id);
-			break;
-		case 3: //bool
-			ret_type_obj = Type::getInt1Ty(TheContext);
-			break;
-		default:
-			break;
-	}
+	Type *ret_type_obj = getTypeObj(ret_type);
 	
 	FunctionType *FT = FunctionType::get(ret_type_obj, args_obj, false);
 	Function *TheFunction = Function::Create(FT, Function::ExternalLinkage, getName(), TheModule.get());

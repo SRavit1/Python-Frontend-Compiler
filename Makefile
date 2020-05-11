@@ -8,10 +8,10 @@ lex.yy.c : lex.l
 	lex lex.l
 
 parser.tab.c : parser.y
-	bison --debug -d parser.y
+	bison -d parser.y
 
 parser.tab.h : parser.y
-	bison --debug -d parser.y
+	bison -d parser.y
 
 clean : 
 	rm lex.yy.* parser.tab.* a.out

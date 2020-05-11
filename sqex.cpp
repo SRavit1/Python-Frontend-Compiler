@@ -5,7 +5,6 @@
 #include "compile.h"
 #include "nodescpp.h"
 
-
 int main (void) {
 	std::vector<expression*> square_body = {};
 

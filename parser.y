@@ -9,10 +9,13 @@ int yylex();
 #include "compile.h"
 #include "nodescpp.h"
 
+int indent_level;
+
 std::vector<function_exp*> program = {};
 std::vector<expression*> main_block = {};
 %}
 
+//Note: Pointer must be used in union because sizeof(obj) is unknown
 %union {
 	int int_val;
 	float float_val;
@@ -20,9 +23,7 @@ std::vector<expression*> main_block = {};
 
 	char* string_val;
 	class expression* exp;
-	//Pointer must be used in union because sizeof(exp) is unknown
-	//TODO: Look into smart pointers as better alternative
-	//Problem: Object slicing occurs when assigning derived class to base class
+	
 	class function_exp* fexp;
 	std::vector<expression*>* expl;
 	std::vector<std::string>* strl;
@@ -34,12 +35,12 @@ std::vector<expression*> main_block = {};
 %token RET
 
 %token EQUAL
-%token NEWL
 
 %token OPEN_PAREN
 %token CLOSE_PAREN
 %token COMMA
 %token COLON
+%token TAB
 
 %token <string_val> IDENTIFIER
 %token <int_val> INT_TOKEN
@@ -63,13 +64,18 @@ std::vector<expression*> main_block = {};
 %type <exp> binary_expression
 %type <exp> variable
 
+//TODO: Precedence is not working
+/*
+%left '-' '+'
+%left '*' '/'
+*/
 %%
-
-statement_list: top_statement NEWL | statement_list top_statement NEWL;
+statement_list: top_statement | statement_list top_statement;
 
 top_statement:
 	statement { main_block.push_back($1); }
 	| function_declaration { program.push_back($1); }
+	| "\n" top_statement {}
 	;
 
 statement:
@@ -81,7 +87,7 @@ statement:
 	;
 
 assignment:
-	IDENTIFIER EQUAL expression { $$ = $3; }
+	IDENTIFIER EQUAL expression { $$ = $3; $$->setName($1); }
 	;
 
 function_call:
@@ -114,16 +120,20 @@ return:
 	;
 
 function_declaration:
-	DEF IDENTIFIER OPEN_PAREN param_list CLOSE_PAREN COLON NEWL "{" body "}"
+	DEF IDENTIFIER OPEN_PAREN CLOSE_PAREN COLON body
 		{
 			//TODO: Don't know ret type at this point
-			std::string function_name = $2;
-			std::vector<int> arg_types($4->size());
-			std::vector<std::string> arg_names = *$4;
-			int ret_type = 0;
-			std::vector<expression*>* body = $9;
+			std::vector<int> arg_types;
+			std::vector<std::string> arg_names;
 			
-			$$ = new function_exp (function_name, arg_types, arg_names, ret_type, body);
+			$$ = new function_exp ($2, arg_types, arg_names, 0, $6);
+		}
+	| DEF IDENTIFIER OPEN_PAREN param_list CLOSE_PAREN COLON body
+		{
+			//TODO: Don't know ret type at this point -- see above
+			std::vector<int> arg_types($4->size());
+			
+			$$ = new function_exp ($2, arg_types, *$4, 0, $7);
 		}
 	;
 
@@ -142,16 +152,15 @@ param_list:
 	;	
 
 body:
-	statement NEWL body
+	TAB statement
 		{
-			$3->push_back($1);
-			$$ = $3;
-		}
-	| statement NEWL
-		{
-
 			$$ = new std::vector<expression*>;
-			$$->push_back($1);
+			$$->push_back($2);
+		}
+	| body TAB statement
+		{
+			$$ = $1;
+			$$->push_back($3);
 		}
 	;
 
@@ -161,16 +170,16 @@ expression:
 	| variable { $$ = $1; }
 	| function_call { $$ = $1; }
 	| INT_TOKEN {
-		$$ = new integer_const("temp", $1);
+		$$ = new integer_const("", $1);
 	}
 	| FLOAT_TOKEN {
-		$$ = new float_const("temp", $1);
+		$$ = new float_const("", $1);
 	}
 	| STRING_TOKEN {
-		$$ = new string_const("temp", $1);
+		$$ = new string_const("", $1);
 	}
 	| BOOL_TOKEN {
-		$$ = new bool_const("temp", $1);
+		$$ = new bool_const("", $1);
 	}
 	;
 
@@ -192,13 +201,16 @@ variable:
 
 int main (void) {
 	#ifndef YYDEBUG
-		yydebug = 1;
+	yydebug = 1;
 	#endif
-
-	function_exp main("main", {0, 0}, {"var", "var2"}, 0, &main_block);
-	program.push_back(&main);
 	
-	int result = yyparse ();
+	int result = yyparse();
+
+	//Add return to main_block if not present
+	//Add return types for function args
+	//Add return type for functions
+	function_exp main("main", {}, {}, 0, &main_block);
+	program.push_back(&main);
 
 	compile(program);
 

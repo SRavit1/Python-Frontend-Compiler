@@ -1,0 +1,12 @@
+Bug:
+- function call containing expression doesn't work
+    e.g. square(var+2)
+
+
+TODO:
+- Parser indentation recognition
+    Keep track of indentation level through variable in parser
+- Operators based on operand types
+    Solution: check types before creating LLVM op in codegen
+- Enable redefinition of variables
+    Solution: create symbol table in parser to store expression values of variables
