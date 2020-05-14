@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 
-int compile (std::vector<function_exp*> program) {
+int compile (std::vector<function_exp*>* program) {
 	//if(checkProgram(program))
     //    perror("Program sanity check");
     //std::vector<function_exp> optimized = optimizeProgram(program);

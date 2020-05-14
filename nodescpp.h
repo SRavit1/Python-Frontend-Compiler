@@ -59,7 +59,8 @@ namespace {
 
 		public:
 			variable(llvm::StringRef name) : expression(name) {}
-			
+			variable(expression* expr) : expression(expr->getName()) {}
+
 			Value *codegen() override;
 			virtual const char *getType() { return ExprType; }
 	};
@@ -151,5 +152,15 @@ namespace {
 
 			Function *codegen();
 			virtual const char *getType() { return ExprType; }
+	};
+
+	class body {
+		std::vector<expression*>* body_content;
+		std::map<llvm::StringRef, llvm::StringRef>* variables;
+		public:
+			body(std::vector<expression*>* body_content, std::map<llvm::StringRef, llvm::StringRef>* variables)
+				: body_content(body_content), variables(variables) {}
+			std::vector<expression*>* getBodyContent() { return body_content; }
+			void addExpression(expression* expr) { body_content->push_back(expr); }
 	};
 }

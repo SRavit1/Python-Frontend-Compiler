@@ -14,7 +14,7 @@
 
 static LLVMContext TheContext;
 static IRBuilder<> Builder(TheContext);
-static std::unique_ptr<Module> TheModule = make_unique<Module>("my cool jit", TheContext);
+static std::unique_ptr<Module> TheModule = make_unique<Module>("My Module", TheContext);
 static std::map<std::string, Value *> NamedValues;
 
 std::unique_ptr<expression> LogError(const char *Str) {
@@ -153,8 +153,8 @@ Function *function_exp::codegen() {
 	return nullptr;
 }
 
-void codegen(const std::vector<function_exp*> statements) {
-	for (auto statement : statements) {
+void codegen(const std::vector<function_exp*>* statements) {
+	for (auto statement : *statements) {
 		statement->codegen();
 	}
 

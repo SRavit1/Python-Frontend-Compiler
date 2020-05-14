@@ -14,7 +14,7 @@ int main (void) {
 
 	function_exp* square = new function_exp("square", {0}, {"num"}, 0, &square_body);
 
-    std::vector<function_exp*> program = {};
+    std::vector<function_exp*>* program = new std::vector<function_exp*>();
 
     function_call* call_square = new function_call("call_square", "square");
 	call_square->addExpression(new integer_const("num", 3));
@@ -22,8 +22,8 @@ int main (void) {
 	
     function_exp* main = new function_exp("main", {}, {}, 0, &main_body);
 
-    program.push_back(square);
-    program.push_back(main);
+    program->push_back(square);
+    program->push_back(main);
 	
     compile(program);
 

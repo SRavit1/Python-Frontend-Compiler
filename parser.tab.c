@@ -70,16 +70,24 @@ int yylex();
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <stack>
 
 #include "compile.h"
 #include "nodescpp.h"
+#include "llvm/ADT/StringRef.h"
 
 int indent_level;
 
-std::vector<function_exp*> program = {};
-std::vector<expression*> main_block = {};
+//Purpose: Keeping track of scope
+//Purpose: Python allows redefinition of current_scope, LLVM doesn't
+std::stack<std::map<llvm::StringRef, llvm::StringRef>*>* scope_stack = new std::stack<std::map<llvm::StringRef, llvm::StringRef>*>();
+std::map<llvm::StringRef, llvm::StringRef>* current_scope = new std::map<llvm::StringRef, llvm::StringRef>();
 
-#line 83 "parser.tab.c" /* yacc.c:339  */
+std::vector<function_exp*>* program = new std::vector<function_exp*>();
+std::vector<expression*>* main_block = new std::vector<expression*>();
+
+
+#line 91 "parser.tab.c" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -103,7 +111,7 @@ std::vector<expression*> main_block = {};
 # define YY_YY_PARSER_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
-# define YYDEBUG 0
+# define YYDEBUG 1
 #endif
 #if YYDEBUG
 extern int yydebug;
@@ -136,7 +144,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 19 "parser.y" /* yacc.c:355  */
+#line 27 "parser.y" /* yacc.c:355  */
 
 	int int_val;
 	float float_val;
@@ -145,11 +153,13 @@ union YYSTYPE
 	char* string_val;
 	class expression* exp;
 	
+	class body* body;
+
 	class function_exp* fexp;
 	std::vector<expression*>* expl;
 	std::vector<std::string>* strl;
 
-#line 153 "parser.tab.c" /* yacc.c:355  */
+#line 163 "parser.tab.c" /* yacc.c:355  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -166,7 +176,7 @@ int yyparse (void);
 
 /* Copy the second part of user declarations.  */
 
-#line 170 "parser.tab.c" /* yacc.c:358  */
+#line 180 "parser.tab.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -465,10 +475,10 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    73,    73,    73,    76,    77,    78,    82,    83,    84,
-      90,    94,   103,   109,   116,   123,   131,   141,   147,   155,
-     160,   168,   169,   170,   171,   172,   175,   178,   181,   187,
-     194
+       0,    83,    83,    83,    86,    87,    88,    92,    93,    94,
+     100,   134,   146,   151,   158,   165,   173,   183,   191,   202,
+     214,   222,   223,   224,   225,   226,   229,   232,   235,   241,
+     248
 };
 #endif
 
@@ -1272,220 +1282,268 @@ yyreduce:
   switch (yyn)
     {
         case 4:
-#line 76 "parser.y" /* yacc.c:1646  */
-    { main_block.push_back((yyvsp[0].exp)); }
-#line 1278 "parser.tab.c" /* yacc.c:1646  */
+#line 86 "parser.y" /* yacc.c:1646  */
+    { main_block->push_back((yyvsp[0].exp)); }
+#line 1288 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 77 "parser.y" /* yacc.c:1646  */
-    { program.push_back((yyvsp[0].fexp)); }
-#line 1284 "parser.tab.c" /* yacc.c:1646  */
+#line 87 "parser.y" /* yacc.c:1646  */
+    { program->push_back((yyvsp[0].fexp)); }
+#line 1294 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 78 "parser.y" /* yacc.c:1646  */
+#line 88 "parser.y" /* yacc.c:1646  */
     {}
-#line 1290 "parser.tab.c" /* yacc.c:1646  */
+#line 1300 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 82 "parser.y" /* yacc.c:1646  */
+#line 92 "parser.y" /* yacc.c:1646  */
     { (yyval.exp) = (yyvsp[0].exp); }
-#line 1296 "parser.tab.c" /* yacc.c:1646  */
+#line 1306 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 8:
-#line 83 "parser.y" /* yacc.c:1646  */
+#line 93 "parser.y" /* yacc.c:1646  */
     { (yyval.exp) = (yyvsp[0].exp); }
-#line 1302 "parser.tab.c" /* yacc.c:1646  */
+#line 1312 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 84 "parser.y" /* yacc.c:1646  */
+#line 94 "parser.y" /* yacc.c:1646  */
     { (yyval.exp) = (yyvsp[0].exp); }
-#line 1308 "parser.tab.c" /* yacc.c:1646  */
+#line 1318 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 90 "parser.y" /* yacc.c:1646  */
-    { (yyval.exp) = (yyvsp[0].exp); (yyval.exp)->setName((yyvsp[-2].string_val)); }
-#line 1314 "parser.tab.c" /* yacc.c:1646  */
+#line 100 "parser.y" /* yacc.c:1646  */
+    {
+		(yyval.exp) = (yyvsp[0].exp);
+		
+
+		typedef std::map<llvm::StringRef, llvm::StringRef>::const_iterator CI;
+		bool identifier_present = 0;
+		for (CI it = current_scope->begin(); it != current_scope->end(); ++it) {
+			if (it->first == (yyvsp[-2].string_val))
+				identifier_present = 1;
+		}
+
+		if (!identifier_present) {
+			(*current_scope)[(yyvsp[-2].string_val)] = (yyvsp[-2].string_val);
+			(yyval.exp)->setName((yyvsp[-2].string_val));
+		}
+		else {
+			int i = 1;
+			std::string new_identifier;
+			while(identifier_present) {
+				new_identifier = (yyvsp[-2].string_val) + i;
+				identifier_present = 0;
+				for (CI it = current_scope->begin(); it != current_scope->end(); ++it) {
+					if (it->first == new_identifier)
+						identifier_present = 1;
+				}
+				i++;
+			}
+			(*current_scope)[(yyvsp[-2].string_val)] = new_identifier;
+			(yyval.exp)->setName(new_identifier);
+		}
+	}
+#line 1354 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 11:
-#line 95 "parser.y" /* yacc.c:1646  */
+#line 135 "parser.y" /* yacc.c:1646  */
     {
-			function_call* fc = new function_call("fun", (yyvsp[-3].string_val));
-			for (auto arg: *(yyvsp[-1].expl))
+			function_call* fc = new function_call("fc_out", (yyvsp[-3].string_val));
+			for (auto arg: *(yyvsp[-1].expl)) {
+				std::cout<<"ARG TYPE: "<< arg->getType();
+				std::cout<<" NAME: " << arg->getName();
 				fc->addExpression(arg);
+			}
 			(yyval.exp) = fc;
 		}
-#line 1325 "parser.tab.c" /* yacc.c:1646  */
+#line 1368 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 12:
-#line 104 "parser.y" /* yacc.c:1646  */
+#line 147 "parser.y" /* yacc.c:1646  */
     {
-			std::vector<expression*>* expl = new std::vector<expression*>();
-			expl->push_back((yyvsp[0].exp));
-			(yyval.expl) = expl;
+			(yyval.expl) = new std::vector<expression*>();
+			(yyval.expl)->push_back((yyvsp[0].exp));
 		}
-#line 1335 "parser.tab.c" /* yacc.c:1646  */
+#line 1377 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 13:
-#line 110 "parser.y" /* yacc.c:1646  */
-    {			
-			(yyvsp[-2].expl)->push_back((yyvsp[0].exp));
-			(yyval.expl)=(yyvsp[-2].expl);
+#line 152 "parser.y" /* yacc.c:1646  */
+    {
+			(yyval.expl)=(yyvsp[-2].expl);	
+			(yyval.expl)->push_back((yyvsp[0].exp));
 		}
-#line 1344 "parser.tab.c" /* yacc.c:1646  */
+#line 1386 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 14:
-#line 117 "parser.y" /* yacc.c:1646  */
+#line 159 "parser.y" /* yacc.c:1646  */
     {
 			(yyval.exp) = new return_statement("ret", (yyvsp[0].exp));
 		}
-#line 1352 "parser.tab.c" /* yacc.c:1646  */
+#line 1394 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 15:
-#line 124 "parser.y" /* yacc.c:1646  */
+#line 166 "parser.y" /* yacc.c:1646  */
     {
 			//TODO: Don't know ret type at this point
 			std::vector<int> arg_types;
 			std::vector<std::string> arg_names;
 			
-			(yyval.fexp) = new function_exp ((yyvsp[-4].string_val), arg_types, arg_names, 0, (yyvsp[0].expl));
+			(yyval.fexp) = new function_exp ((yyvsp[-4].string_val), arg_types, arg_names, 0, (yyvsp[0].body)->getBodyContent());
 		}
-#line 1364 "parser.tab.c" /* yacc.c:1646  */
+#line 1406 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 16:
-#line 132 "parser.y" /* yacc.c:1646  */
+#line 174 "parser.y" /* yacc.c:1646  */
     {
 			//TODO: Don't know ret type at this point -- see above
 			std::vector<int> arg_types((yyvsp[-3].strl)->size());
 			
-			(yyval.fexp) = new function_exp ((yyvsp[-5].string_val), arg_types, *(yyvsp[-3].strl), 0, (yyvsp[0].expl));
+			(yyval.fexp) = new function_exp ((yyvsp[-5].string_val), arg_types, *(yyvsp[-3].strl), 0, (yyvsp[0].body)->getBodyContent());
 		}
-#line 1375 "parser.tab.c" /* yacc.c:1646  */
+#line 1417 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 17:
-#line 142 "parser.y" /* yacc.c:1646  */
+#line 184 "parser.y" /* yacc.c:1646  */
     {
-			std::vector<std::string>* ident = new std::vector<std::string>;
-			ident->push_back((yyvsp[0].string_val));
-			(yyval.strl) = ident;
+			(yyval.strl) = new std::vector<std::string>();
+			(yyval.strl)->push_back((yyvsp[0].string_val));
+
+			//TEMPORARY FIX
+			(*current_scope)[(yyvsp[0].string_val)] = (yyvsp[0].string_val);
 		}
-#line 1385 "parser.tab.c" /* yacc.c:1646  */
+#line 1429 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 18:
-#line 148 "parser.y" /* yacc.c:1646  */
+#line 192 "parser.y" /* yacc.c:1646  */
     {
 			(yyval.strl) = (yyvsp[-2].strl);
 			(yyval.strl)->push_back((yyvsp[0].string_val));
+
+			//TEMPORARY FIX -- see above
+			(*current_scope)[(yyvsp[0].string_val)] = (yyvsp[0].string_val);
 		}
-#line 1394 "parser.tab.c" /* yacc.c:1646  */
+#line 1441 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 19:
-#line 156 "parser.y" /* yacc.c:1646  */
+#line 203 "parser.y" /* yacc.c:1646  */
     {
-			(yyval.expl) = new std::vector<expression*>;
-			(yyval.expl)->push_back((yyvsp[0].exp));
+			//TODO: Statement that comes here will be added to the previous scope
+			std::vector<expression*>* body_content = new std::vector<expression*>();
+			std::map<llvm::StringRef, llvm::StringRef>* scope = new std::map<llvm::StringRef, llvm::StringRef>();
+
+			current_scope = scope;
+			scope_stack->push(scope);
+
+			(yyval.body) = new body(body_content, scope);
+			(yyval.body)->addExpression((yyvsp[0].exp));
 		}
-#line 1403 "parser.tab.c" /* yacc.c:1646  */
+#line 1457 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 20:
-#line 161 "parser.y" /* yacc.c:1646  */
+#line 215 "parser.y" /* yacc.c:1646  */
     {
-			(yyval.expl) = (yyvsp[-2].expl);
-			(yyval.expl)->push_back((yyvsp[0].exp));
+			(yyval.body) = (yyvsp[-2].body);
+			(yyval.body)->addExpression((yyvsp[0].exp));
 		}
-#line 1412 "parser.tab.c" /* yacc.c:1646  */
+#line 1466 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 21:
-#line 168 "parser.y" /* yacc.c:1646  */
+#line 222 "parser.y" /* yacc.c:1646  */
     { (yyval.exp) = (yyvsp[-1].exp); }
-#line 1418 "parser.tab.c" /* yacc.c:1646  */
+#line 1472 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 22:
-#line 169 "parser.y" /* yacc.c:1646  */
+#line 223 "parser.y" /* yacc.c:1646  */
     { (yyval.exp) = (yyvsp[0].exp); }
-#line 1424 "parser.tab.c" /* yacc.c:1646  */
+#line 1478 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 23:
-#line 170 "parser.y" /* yacc.c:1646  */
+#line 224 "parser.y" /* yacc.c:1646  */
     { (yyval.exp) = (yyvsp[0].exp); }
-#line 1430 "parser.tab.c" /* yacc.c:1646  */
+#line 1484 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 24:
-#line 171 "parser.y" /* yacc.c:1646  */
+#line 225 "parser.y" /* yacc.c:1646  */
     { (yyval.exp) = (yyvsp[0].exp); }
-#line 1436 "parser.tab.c" /* yacc.c:1646  */
+#line 1490 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 25:
-#line 172 "parser.y" /* yacc.c:1646  */
+#line 226 "parser.y" /* yacc.c:1646  */
     {
 		(yyval.exp) = new integer_const("", (yyvsp[0].int_val));
 	}
-#line 1444 "parser.tab.c" /* yacc.c:1646  */
+#line 1498 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 26:
-#line 175 "parser.y" /* yacc.c:1646  */
+#line 229 "parser.y" /* yacc.c:1646  */
     {
 		(yyval.exp) = new float_const("", (yyvsp[0].float_val));
 	}
-#line 1452 "parser.tab.c" /* yacc.c:1646  */
+#line 1506 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 27:
-#line 178 "parser.y" /* yacc.c:1646  */
+#line 232 "parser.y" /* yacc.c:1646  */
     {
 		(yyval.exp) = new string_const("", (yyvsp[0].string_val));
 	}
-#line 1460 "parser.tab.c" /* yacc.c:1646  */
+#line 1514 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 28:
-#line 181 "parser.y" /* yacc.c:1646  */
+#line 235 "parser.y" /* yacc.c:1646  */
     {
 		(yyval.exp) = new bool_const("", (yyvsp[0].int_val));
 	}
-#line 1468 "parser.tab.c" /* yacc.c:1646  */
+#line 1522 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 29:
-#line 188 "parser.y" /* yacc.c:1646  */
+#line 242 "parser.y" /* yacc.c:1646  */
     {
 			(yyval.exp) = new binary_expression("", (yyvsp[-1].string_val), (yyvsp[-2].exp), (yyvsp[0].exp));
 		}
-#line 1476 "parser.tab.c" /* yacc.c:1646  */
+#line 1530 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 30:
-#line 195 "parser.y" /* yacc.c:1646  */
+#line 249 "parser.y" /* yacc.c:1646  */
     {
-			variable* var = new variable((yyvsp[0].string_val));
+			/*
+			TODO: Variable may not be in current scope
+			*/
+			std::string var_name = (*current_scope)[(yyvsp[0].string_val)];
+			variable* var = new variable((yyvsp[0].string_val)); //changed from var_name
 			(yyval.exp) = var;
 		}
-#line 1485 "parser.tab.c" /* yacc.c:1646  */
+#line 1543 "parser.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 1489 "parser.tab.c" /* yacc.c:1646  */
+#line 1547 "parser.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1713,7 +1771,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 200 "parser.y" /* yacc.c:1906  */
+#line 258 "parser.y" /* yacc.c:1906  */
 
 
 int main (void) {
@@ -1726,8 +1784,10 @@ int main (void) {
 	//Add return to main_block if not present
 	//Add return types for function args
 	//Add return type for functions
-	function_exp main("main", {}, {}, 0, &main_block);
-	program.push_back(&main);
+	function_exp* main = new function_exp("main", {0}, {"var"}, 0, main_block);
+	std::string in_name = "var";
+	(*current_scope)[in_name] = in_name;
+	program->push_back(main);
 
 	compile(program);
 

@@ -5,14 +5,22 @@ int yylex();
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <stack>
 
 #include "compile.h"
 #include "nodescpp.h"
+#include "llvm/ADT/StringRef.h"
 
 int indent_level;
 
-std::vector<function_exp*> program = {};
-std::vector<expression*> main_block = {};
+//Purpose: Keeping track of scope
+//Purpose: Python allows redefinition of current_scope, LLVM doesn't
+std::stack<std::map<llvm::StringRef, llvm::StringRef>*>* scope_stack = new std::stack<std::map<llvm::StringRef, llvm::StringRef>*>();
+std::map<llvm::StringRef, llvm::StringRef>* current_scope = new std::map<llvm::StringRef, llvm::StringRef>();
+
+std::vector<function_exp*>* program = new std::vector<function_exp*>();
+std::vector<expression*>* main_block = new std::vector<expression*>();
+
 %}
 
 //Note: Pointer must be used in union because sizeof(obj) is unknown
@@ -24,6 +32,8 @@ std::vector<expression*> main_block = {};
 	char* string_val;
 	class expression* exp;
 	
+	class body* body;
+
 	class function_exp* fexp;
 	std::vector<expression*>* expl;
 	std::vector<std::string>* strl;
@@ -58,7 +68,7 @@ std::vector<expression*> main_block = {};
 
 %type <expl> args_list
 %type <strl> param_list
-%type <expl> body
+%type <body> body
 
 %type <exp> expression
 %type <exp> binary_expression
@@ -73,8 +83,8 @@ std::vector<expression*> main_block = {};
 statement_list: top_statement | statement_list top_statement;
 
 top_statement:
-	statement { main_block.push_back($1); }
-	| function_declaration { program.push_back($1); }
+	statement { main_block->push_back($1); }
+	| function_declaration { program->push_back($1); }
 	| "\n" top_statement {}
 	;
 
@@ -87,29 +97,61 @@ statement:
 	;
 
 assignment:
-	IDENTIFIER EQUAL expression { $$ = $3; $$->setName($1); }
+	IDENTIFIER EQUAL expression {
+		$$ = $3;
+		
+
+		typedef std::map<llvm::StringRef, llvm::StringRef>::const_iterator CI;
+		bool identifier_present = 0;
+		for (CI it = current_scope->begin(); it != current_scope->end(); ++it) {
+			if (it->first == $1)
+				identifier_present = 1;
+		}
+
+		if (!identifier_present) {
+			(*current_scope)[$1] = $1;
+			$$->setName($1);
+		}
+		else {
+			int i = 1;
+			std::string new_identifier;
+			while(identifier_present) {
+				new_identifier = $1 + i;
+				identifier_present = 0;
+				for (CI it = current_scope->begin(); it != current_scope->end(); ++it) {
+					if (it->first == new_identifier)
+						identifier_present = 1;
+				}
+				i++;
+			}
+			(*current_scope)[$1] = new_identifier;
+			$$->setName(new_identifier);
+		}
+	}
 	;
 
 function_call:
 	IDENTIFIER OPEN_PAREN args_list CLOSE_PAREN
 		{
-			function_call* fc = new function_call("fun", $1);
-			for (auto arg: *$3)
+			function_call* fc = new function_call("fc_out", $1);
+			for (auto arg: *$3) {
+				std::cout<<"ARG TYPE: "<< arg->getType();
+				std::cout<<" NAME: " << arg->getName();
 				fc->addExpression(arg);
+			}
 			$$ = fc;
 		}
 	;
 args_list:
 	expression
 		{
-			std::vector<expression*>* expl = new std::vector<expression*>();
-			expl->push_back($1);
-			$$ = expl;
+			$$ = new std::vector<expression*>();
+			$$->push_back($1);
 		}
 	| args_list COMMA expression
-		{			
-			$1->push_back($3);
-			$$=$1;
+		{
+			$$=$1;	
+			$$->push_back($3);
 		}
 	;
 return:
@@ -126,41 +168,53 @@ function_declaration:
 			std::vector<int> arg_types;
 			std::vector<std::string> arg_names;
 			
-			$$ = new function_exp ($2, arg_types, arg_names, 0, $6);
+			$$ = new function_exp ($2, arg_types, arg_names, 0, $6->getBodyContent());
 		}
 	| DEF IDENTIFIER OPEN_PAREN param_list CLOSE_PAREN COLON body
 		{
 			//TODO: Don't know ret type at this point -- see above
 			std::vector<int> arg_types($4->size());
 			
-			$$ = new function_exp ($2, arg_types, *$4, 0, $7);
+			$$ = new function_exp ($2, arg_types, *$4, 0, $7->getBodyContent());
 		}
 	;
 
 param_list:
 	IDENTIFIER
 		{
-			std::vector<std::string>* ident = new std::vector<std::string>;
-			ident->push_back($1);
-			$$ = ident;
+			$$ = new std::vector<std::string>();
+			$$->push_back($1);
+
+			//TEMPORARY FIX
+			(*current_scope)[$1] = $1;
 		}
 	| param_list COMMA IDENTIFIER
 		{
 			$$ = $1;
 			$$->push_back($3);
+
+			//TEMPORARY FIX -- see above
+			(*current_scope)[$3] = $3;
 		}
 	;	
 
 body:
 	TAB statement
 		{
-			$$ = new std::vector<expression*>;
-			$$->push_back($2);
+			//TODO: Statement that comes here will be added to the previous scope
+			std::vector<expression*>* body_content = new std::vector<expression*>();
+			std::map<llvm::StringRef, llvm::StringRef>* scope = new std::map<llvm::StringRef, llvm::StringRef>();
+
+			current_scope = scope;
+			scope_stack->push(scope);
+
+			$$ = new body(body_content, scope);
+			$$->addExpression($2);
 		}
 	| body TAB statement
 		{
 			$$ = $1;
-			$$->push_back($3);
+			$$->addExpression($3);
 		}
 	;
 
@@ -193,7 +247,11 @@ binary_expression:
 variable:
 	IDENTIFIER
 		{
-			variable* var = new variable($1);
+			/*
+			TODO: Variable may not be in current scope
+			*/
+			std::string var_name = (*current_scope)[$1];
+			variable* var = new variable($1); //changed from var_name
 			$$ = var;
 		}
 	;
@@ -209,8 +267,10 @@ int main (void) {
 	//Add return to main_block if not present
 	//Add return types for function args
 	//Add return type for functions
-	function_exp main("main", {}, {}, 0, &main_block);
-	program.push_back(&main);
+	function_exp* main = new function_exp("main", {0}, {"var"}, 0, main_block);
+	std::string in_name = "var";
+	(*current_scope)[in_name] = in_name;
+	program->push_back(main);
 
 	compile(program);
 

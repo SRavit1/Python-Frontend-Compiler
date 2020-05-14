@@ -34,7 +34,7 @@
 # define YY_YY_PARSER_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
-# define YYDEBUG 0
+# define YYDEBUG 1
 #endif
 #if YYDEBUG
 extern int yydebug;
@@ -67,7 +67,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 19 "parser.y" /* yacc.c:1909  */
+#line 27 "parser.y" /* yacc.c:1909  */
 
 	int int_val;
 	float float_val;
@@ -76,11 +76,13 @@ union YYSTYPE
 	char* string_val;
 	class expression* exp;
 	
+	class body* body;
+
 	class function_exp* fexp;
 	std::vector<expression*>* expl;
 	std::vector<std::string>* strl;
 
-#line 84 "parser.tab.h" /* yacc.c:1909  */
+#line 86 "parser.tab.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

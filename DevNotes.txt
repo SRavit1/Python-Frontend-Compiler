@@ -1,12 +1,40 @@
-Bug:
-- function call containing expression doesn't work
-    e.g. square(var+2)
-
+Features:
+- Variables are pass by reference (see action taken in assignment pattern)
+- setName() for expression should not be called ...
+- Semantic Analysis
+    - scoping of variables
+    - checking proper types of functions
+    - add return types to function
+    - overriding untyped functions that work with multiple variables
 
 TODO:
+- BUG: function call containing expression doesn't work
+    e.g. square(var+2)
+- BUG: a=var+2 works but a=var-2 doesn't
+- Scoping of variables
+    Solution: 
+- Keeping track of redefined variables
+    Should be done based on scope
+    Particularly when the redefinition contains the original variable (e.g. a = a+2)
+    Also, what about parameters passed in through method declarations?
+    num = num + 2 vs num = 2 (redefined) both need to be handled properly
 - Parser indentation recognition
     Keep track of indentation level through variable in parser
 - Operators based on operand types
     Solution: check types before creating LLVM op in codegen
-- Enable redefinition of variables
+- Overriding functions in Python that have multiple parameter types
+- Think about: functions in Python that can have more than one return type
+    (e.g.one branch: return string, other: return int)
+- Scoping of Variables
+    Enable redefinition of variables
     Solution: create symbol table in parser to store expression values of variables
+- Think about: pass by value/reference
+- Enable overriding of functions that work for multiple data types
+- Make sure all pointers are deleted by end of program
+- In Python, (var + 2) returns a tuple, not simply the expression var+2
+- Functions are able to be called before their declaration
+
+Questions:
+- int i vs int& i -- What is the difference?
+- ++i vs i++ in for loop
+- Is this ok to take the reference to the field of an object allocated on the stack (and expect it to stay the same)?
